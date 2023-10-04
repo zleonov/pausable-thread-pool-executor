@@ -1,0 +1,109 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>software.leonov</groupId>
+    <artifactId>pausable-thread-pool-executor</artifactId>
+    <version>0.0.1-SNAPSHOT</version>
+    <!-- default packaging is a jar <packaging>jar</packaging> -->
+
+    <name>Pausable Thread Pool Executor</name>
+    <description>
+        A Thread Pool Executor which can pause and resume the processing of
+        pending tasks.
+    </description>
+
+    <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <maven.compiler.source>1.8</maven.compiler.source>
+        <maven.compiler.target>1.8</maven.compiler.target>
+        <maven-javadoc-plugin.version>3.0.0</maven-javadoc-plugin.version>
+        <maven-source-plugin.version>3.0.0</maven-source-plugin.version>
+    </properties>
+
+    <licenses>
+        <license>
+            <name>Apache License, Version 2.0</name>
+            <url>https://www.apache.org/licenses/LICENSE-2.0.txt</url>
+        </license>
+    </licenses>
+
+    <build>
+        <plugins>
+            <plugin>
+                <artifactId>maven-site-plugin</artifactId>
+                <version>3.7.1</version>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-source-plugin</artifactId>
+                <version>${maven-source-plugin.version}</version>
+                <executions>
+                    <execution>
+                        <id>attach-sources</id>
+                        <goals>
+                            <goal>jar</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-javadoc-plugin</artifactId>
+                <version>${maven-javadoc-plugin.version}</version>
+
+                <configuration>
+                    <sourcepath>${project.build.sourceDirectory}:${java.sourceDirectory}:${guava.sourceDirectory}</sourcepath>
+                    <subpackages>software.leonov</subpackages>
+                    <quiet>false</quiet>
+                    <notimestamp>true</notimestamp>
+                    <encoding>UTF-8</encoding>
+                    <docencoding>UTF-8</docencoding>
+                    <charset>UTF-8</charset>
+                    <show>public</show>
+                    <doclint>all</doclint>
+                    <linksource>true</linksource>
+                    <doctitle>
+                        <![CDATA[
+                        ${project.name} ${project.version} API
+                        <p>
+                        <div style='font-weight:normal; font-size:smaller'>${project.description}</div>
+                        ]]>
+                    </doctitle>
+                    <detectJavaApiLink>true</detectJavaApiLink>
+                    <links>
+                        <link>
+                            https://google.github.io/guava/releases/26.0-jre/api/docs/</link>
+                    </links>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>attach-javadocs</id>
+                        <goals>
+                            <goal>jar</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>generate-javadoc-site-report</id>
+                        <phase>site</phase>
+                        <goals>
+                            <goal>javadoc</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+
+    <reporting>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-project-info-reports-plugin</artifactId>
+                <version>2.9</version>
+            </plugin>
+        </plugins>
+    </reporting>
+
+</project>
