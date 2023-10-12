@@ -107,7 +107,8 @@ public final class UninterruptibleThread extends Thread {
     }
 
     /**
-     * Disables the current thread's interruption.
+     * Disables the current thread's interruption ability. If the thread is interrupted in this state, the request will be
+     * deferred until the thread's interruption ability is {@link #enableInterruption() enabled}.
      */
     public static void disableInterruption() {
         final UninterruptibleThread t = currentThread();
