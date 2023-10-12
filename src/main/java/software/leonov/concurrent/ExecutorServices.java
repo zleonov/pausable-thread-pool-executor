@@ -1,5 +1,6 @@
 package software.leonov.concurrent;
 
+import static java.lang.Thread.NORM_PRIORITY;
 import static java.util.Objects.requireNonNull;
 import static software.leonov.concurrent.PausableThreadPoolExecutor.drainFully;
 
@@ -11,6 +12,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Static utility methods for {@link ExecutorService}s.
@@ -60,27 +62,6 @@ public final class ExecutorServices {
 
         return new ThreadPoolExecutor(nthreads, nthreads, 0L, TimeUnit.MILLISECONDS, queue, factory);
     }
-
-//    /**
-//     * Returns a new {@code PausableThreadPoolExecutor} that uses a single worker thread operating of an unbounded queue.
-//     * Tasks are guaranteed to execute sequentially, and no more than one task will be active at any given time.
-//     * 
-//     * @return a new {@code PausableThreadPoolExecutor} that uses a single worker thread operating of an unbounded queue
-//     */
-//    public static PausableThreadPoolExecutor newPausableSingleThreadExecutor() {
-//        return new PausableThreadPoolExecutor(1, new LinkedBlockingQueue<>());
-//    }
-//
-//    /**
-//     * Returns a new {@code PausableThreadPoolExecutor} that uses a single worker thread operating of the specified queue.
-//     * Tasks are guaranteed to execute sequentially, and no more than one task will be active at any given time.
-//     * 
-//     * @param queue the specified {@code BlockingQueue}
-//     * @return a new {@code PausableThreadPoolExecutor} that uses a single worker thread operating of the specified queue
-//     */
-//    public static PausableThreadPoolExecutor newPausableSingleThreadExecutor(final BlockingQueue<Runnable> queue) {
-//        return new PausableThreadPoolExecutor(1, queue);
-//    }
 
     /**
      * Waits for the specified {@code ExecutorService} to terminate after a {@link ExecutorService#shutdown() shutdown()} or
@@ -179,6 +160,51 @@ public final class ExecutorServices {
                 drainFully(queue, tasks);
             }
             return tasks;
+        }
+    }
+
+    /**
+     * Returns a new {@code ThreadFactory} that creates {@link UninterruptibleThread}s. Otherwise the returned factory
+     * behaves identically to {@link Executors#defaultThreadFactory()}.
+     * 
+     * @return a new {@code ThreadFactory} which creates {@link UninterruptibleThread}s
+     */
+    public static ThreadFactory uninterruptibleThreadFactory() {
+        return new DefaultUninterruptibleThreadFactory();
+    }
+
+    private static class DefaultUninterruptibleThreadFactory implements ThreadFactory {
+
+        private static final AtomicInteger poolCount = new AtomicInteger(1);
+
+        private final AtomicInteger threadCount = new AtomicInteger(1);
+        private final ThreadGroup group;
+        private final String prefix;
+
+        private DefaultUninterruptibleThreadFactory() {
+            final SecurityManager manager = System.getSecurityManager();
+
+            if (manager == null)
+                group = Thread.currentThread().getThreadGroup();
+            else
+                group = manager.getThreadGroup();
+
+            prefix = "pool-" + poolCount.getAndIncrement() + "-thread-";
+        }
+
+        @Override
+        public Thread newThread(final Runnable runnable) {
+            requireNonNull(runnable, "runnable == null");
+
+            final Thread t = new UninterruptibleThread(group, runnable, prefix + threadCount.getAndIncrement());
+
+            if (t.isDaemon())
+                t.setDaemon(false);
+
+            if (t.getPriority() != NORM_PRIORITY)
+                t.setPriority(NORM_PRIORITY);
+
+            return t;
         }
     }
 

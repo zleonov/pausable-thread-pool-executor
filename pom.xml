@@ -62,7 +62,7 @@
                     <docencoding>UTF-8</docencoding>
                     <charset>UTF-8</charset>
                     <show>public</show>
-                    <doclint>all</doclint>
+                    <doclint>-syntax</doclint>
                     <linksource>true</linksource>
                     <doctitle>
                         <![CDATA[
