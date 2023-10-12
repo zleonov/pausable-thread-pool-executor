@@ -96,15 +96,23 @@ public final class UninterruptibleThread extends Thread {
             interrupted = true;
     }
 
-    private void disableInterruption() {
-        interruptable = false;
-        interrupted = false;
+    /**
+     * Enables the current thread's interruption.
+     */
+    public static void enableInterruption() {
+        final UninterruptibleThread t = currentThread();
+        t.interruptable = true;
+        if (t.interrupted)
+            t.interrupt();
     }
 
-    private void enableInterruption() {
-        interruptable = true;
-        if (interrupted)
-            interrupt();
+    /**
+     * Disables the current thread's interruption.
+     */
+    public static void disableInterruption() {
+        final UninterruptibleThread t = currentThread();
+        t.interruptable = false;
+        t.interrupted = false;
     }
 
     /**
@@ -117,19 +125,18 @@ public final class UninterruptibleThread extends Thread {
      */
     public static void runUninterruptibly(final InterruptibleRunnable runnable) {
         requireNonNull(runnable, "runnable == null");
-        
-        final Runnable r = () -> {
-            try {
-                runnable.run();
-            } catch (final InterruptedException e) {
-                throw new AssertionError(e); // cannot happen
-            }
-        };
 
-        final UninterruptibleThread t = currentThread();
-        t.disableInterruption();
-        r.run();
-        t.enableInterruption();
+        disableInterruption();
+        try {
+            ((Runnable) () -> {
+                try {
+                    runnable.run();
+                } catch (final InterruptedException e) { // cannot happen
+                }
+            }).run();
+        } finally {
+            enableInterruption();
+        }
     }
 
     /**
@@ -146,11 +153,12 @@ public final class UninterruptibleThread extends Thread {
     public static <T> T runUninterruptibly(final Callable<T> callable) throws Exception {
         requireNonNull(callable, "callable == null");
 
-        final UninterruptibleThread t = currentThread();
-        t.disableInterruption();
-        final T result = callable.call();
-        t.enableInterruption();
-        return result;
+        disableInterruption();
+        try {
+            return callable.call();
+        } finally {
+            enableInterruption();
+        }
     }
 
     /**
