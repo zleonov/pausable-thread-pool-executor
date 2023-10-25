@@ -1,7 +1,9 @@
 package software.leonov.concurrent;
 
 import static java.util.Objects.requireNonNull;
+import static java.util.concurrent.Executors.defaultThreadFactory;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -13,6 +15,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.RejectedExecutionHandler;
+import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -22,9 +25,9 @@ import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
 /**
- * An implementation of {@code PausableExecutorService} based on a fixed {@code ThreadPoolExecutor} with additional
+ * An implementation of {@code PausableExecutorService} based on a {@code ThreadPoolExecutor} with additional
  * convenience methods. The {@link #setCorePoolSize(int)} and {@link #setMaximumPoolSize(int)} methods are disabled.
- * After creation this executor is not re-configurable to use additional threads.
+ * After creation this executor is not re-configurable.
  * <p>
  * <b>Pause/resume functionality</b><br>
  * This executor builds on the <i>extension example</i> provided in the documentation of {@link ThreadPoolExecutor}. The
@@ -92,77 +95,94 @@ public final class PausableThreadPoolExecutor extends ThreadPoolExecutor impleme
     private Consumer<Runnable> afterPause = DO_NOTHING_CONSUMER;
     private Runnable afterTerminated = DO_NOTHING_RUNNABLE;
 
-    /**
-     * Returns a new {@code PausableThreadPoolExecutor} that uses a single worker thread operating of an unbounded queue.
-     * Tasks are guaranteed to execute sequentially, and no more than one task will be active at any given time.
-     * 
-     * @return a new {@code PausableThreadPoolExecutor} that uses a single worker thread operating of an unbounded queue
-     */
-    public static PausableThreadPoolExecutor newSingleThreadExecutor() {
-        return new PausableThreadPoolExecutor(1, new LinkedBlockingQueue<>());
+//    /**
+//     * Returns a new {@code PausableThreadPoolExecutor} that uses a single worker thread operating of an unbounded queue.
+//     * Tasks are guaranteed to execute sequentially, and no more than one task will be active at any given time.
+//     * 
+//     * @return a new {@code PausableThreadPoolExecutor} that uses a single worker thread operating of an unbounded queue
+//     */
+//    public static PausableThreadPoolExecutor newSingleThreadExecutor() {
+//        return new PausableThreadPoolExecutor(1, new LinkedBlockingQueue<>());
+//    }
+//
+//    /**
+//     * Returns a new {@code PausableThreadPoolExecutor} that uses a single worker thread operating of the specified queue.
+//     * Tasks are guaranteed to execute sequentially, and no more than one task will be active at any given time.
+//     * 
+//     * @param queue the specified {@code BlockingQueue}
+//     * @return a new {@code PausableThreadPoolExecutor} that uses a single worker thread operating of the specified queue
+//     */
+//    public static PausableThreadPoolExecutor newSingleThreadExecutor(final BlockingQueue<Runnable> queue) {
+//        return new PausableThreadPoolExecutor(1, queue);
+//    }
+//
+//    /**
+//     * Creates a new {@code PausableThreadPoolExecutor} with the given fixed number of threads, unbounded work queue,
+//     * default thread factory, and the {@link java.util.concurrent.ThreadPoolExecutor.AbortPolicy AbortPolicy} handler.
+//     *
+//     * @param corePoolSize the number of threads to keep in the pool
+//     * @throws IllegalArgumentException if {@code corePoolSize < 1}
+//     */
+//    public PausableThreadPoolExecutor(final int corePoolSize) {
+//        this(corePoolSize, new LinkedBlockingQueue<>());
+//    }
+//
+//    /**
+//     * Creates a new {@code PausableThreadPoolExecutor} with the given fixed number of threads, the specified work queue,
+//     * default thread factory, and the {@link java.util.concurrent.ThreadPoolExecutor.AbortPolicy AbortPolicy} handler.
+//     *
+//     * @param corePoolSize the number of threads to keep in the pool
+//     * @param queue        the queue to use for holding tasks before they are executed
+//     * @throws IllegalArgumentException if {@code corePoolSize < 1}
+//     */
+//    public PausableThreadPoolExecutor(final int corePoolSize, final BlockingQueue<Runnable> queue) {
+//        this(corePoolSize, queue, Executors.defaultThreadFactory());
+//    }
+//
+//    /**
+//     * Creates a new {@code PausableThreadPoolExecutor} with the given fixed number of threads, the specified work queue,
+//     * thread factory, and the {@link java.util.concurrent.ThreadPoolExecutor.AbortPolicy AbortPolicy} handler.
+//     *
+//     * @param corePoolSize the number of threads to keep in the pool
+//     * @param queue        the queue to use for holding tasks before they are executed
+//     * @param factory      the factory used to create new threads
+//     * @throws IllegalArgumentException if {@code corePoolSize < 1}
+//     */
+//    public PausableThreadPoolExecutor(final int corePoolSize, final BlockingQueue<Runnable> queue, final ThreadFactory factory) {
+//        this(corePoolSize, queue, factory, new AbortPolicy());
+//    }
+//
+//    /**
+//     * Creates a new {@code PausableThreadPoolExecutor} with the given fixed number of threads, the specified work queue,
+//     * thread factory, and {@code RejectedExecutionHandler}.
+//     *
+//     * @param corePoolSize the number of threads to keep in the pool
+//     * @param queue        the queue to use for holding tasks before they are executed
+//     * @param factory      the factory used to create new threads
+//     * @param handler      the handler to use when execution is blocked because the thread bounds and queue capacities are
+//     *                     reached
+//     * @throws IllegalArgumentException if {@code corePoolSize < 1}
+//     */
+//    public PausableThreadPoolExecutor(final int corePoolSize, final BlockingQueue<Runnable> queue, final ThreadFactory factory, final RejectedExecutionHandler handler) {
+//        super(corePoolSize, corePoolSize, 0L, TimeUnit.MILLISECONDS, queue, factory, handler);
+//    }
+
+    private PausableThreadPoolExecutor(final int corePoolSize, final int maxPoolSize, final long keepAliveTime, final TimeUnit unit, final BlockingQueue<Runnable> queue, final ThreadFactory factory, final RejectedExecutionHandler handler) {
+        super(corePoolSize, maxPoolSize, keepAliveTime, unit, queue, factory, handler);
     }
 
-    /**
-     * Returns a new {@code PausableThreadPoolExecutor} that uses a single worker thread operating of the specified queue.
-     * Tasks are guaranteed to execute sequentially, and no more than one task will be active at any given time.
-     * 
-     * @param queue the specified {@code BlockingQueue}
-     * @return a new {@code PausableThreadPoolExecutor} that uses a single worker thread operating of the specified queue
-     */
-    public static PausableThreadPoolExecutor newSingleThreadExecutor(final BlockingQueue<Runnable> queue) {
-        return new PausableThreadPoolExecutor(1, queue);
-    }
-
-    /**
-     * Creates a new {@code PausableThreadPoolExecutor} with the given fixed number of threads, unbounded work queue,
-     * default thread factory, and the {@link java.util.concurrent.ThreadPoolExecutor.AbortPolicy AbortPolicy} handler.
-     *
-     * @param corePoolSize the number of threads to keep in the pool
-     * @throws IllegalArgumentException if {@code corePoolSize < 1}
-     */
-    public PausableThreadPoolExecutor(final int corePoolSize) {
-        this(corePoolSize, new LinkedBlockingQueue<>());
-    }
-
-    /**
-     * Creates a new {@code PausableThreadPoolExecutor} with the given fixed number of threads, the specified work queue,
-     * default thread factory, and the {@link java.util.concurrent.ThreadPoolExecutor.AbortPolicy AbortPolicy} handler.
-     *
-     * @param corePoolSize the number of threads to keep in the pool
-     * @param queue        the queue to use for holding tasks before they are executed
-     * @throws IllegalArgumentException if {@code corePoolSize < 1}
-     */
-    public PausableThreadPoolExecutor(final int corePoolSize, final BlockingQueue<Runnable> queue) {
-        this(corePoolSize, queue, Executors.defaultThreadFactory());
-    }
-
-    /**
-     * Creates a new {@code PausableThreadPoolExecutor} with the given fixed number of threads, the specified work queue,
-     * thread factory, and the {@link java.util.concurrent.ThreadPoolExecutor.AbortPolicy AbortPolicy} handler.
-     *
-     * @param corePoolSize the number of threads to keep in the pool
-     * @param queue        the queue to use for holding tasks before they are executed
-     * @param factory      the factory used to create new threads
-     * @throws IllegalArgumentException if {@code corePoolSize < 1}
-     */
-    public PausableThreadPoolExecutor(final int corePoolSize, final BlockingQueue<Runnable> queue, final ThreadFactory factory) {
-        this(corePoolSize, queue, factory, new AbortPolicy());
-    }
-
-    /**
-     * Creates a new {@code PausableThreadPoolExecutor} with the given fixed number of threads, the specified work queue,
-     * thread factory, and {@code RejectedExecutionHandler}.
-     *
-     * @param corePoolSize the number of threads to keep in the pool
-     * @param queue        the queue to use for holding tasks before they are executed
-     * @param factory      the factory used to create new threads
-     * @param handler      the handler to use when execution is blocked because the thread bounds and queue capacities are
-     *                     reached
-     * @throws IllegalArgumentException if {@code corePoolSize < 1}
-     */
-    public PausableThreadPoolExecutor(final int corePoolSize, final BlockingQueue<Runnable> queue, final ThreadFactory factory, final RejectedExecutionHandler handler) {
-        super(corePoolSize, corePoolSize, 0L, TimeUnit.MILLISECONDS, queue, factory, handler);
-    }
+//    /**
+//     * Creates a new {@code PausableThreadPoolExecutor} which creates threads as needed (like a
+//     * {@link Executors#newCachedThreadPool cached thread pool}), using a fixed size queue to hold tasks before they are
+//     * executed, and the specified thread factory, and {@code RejectedExecutionHandler}.
+//     * 
+//     * @param queueSize the size of the work queue
+//     * @param factory   the factory used to create new threads
+//     * @param handler   the handler to use when execution is blocked because the thread bounds and queue capacities are
+//     */
+//    public PausableThreadPoolExecutor(final int queueSize, final ThreadFactory factory, final RejectedExecutionHandler handler) {
+//        super(0, Integer.MAX_VALUE, 30, TimeUnit.SECONDS, new ArrayBlockingQueue<>(queueSize), factory, handler);
+//    }
 
     @Override
     protected void beforeExecute(final Thread t, final Runnable r) {
@@ -210,7 +230,7 @@ public final class PausableThreadPoolExecutor extends ThreadPoolExecutor impleme
     public boolean pause() {
         lock.lock();
         try {
-            paused = !isShutdown() || !getQueue().isEmpty();
+            paused = !isShutdown();// || !getQueue().isEmpty();
             return paused;
         } finally {
             lock.unlock();
@@ -372,6 +392,7 @@ public final class PausableThreadPoolExecutor extends ThreadPoolExecutor impleme
             requireNonNull(after, "after == null");
             this.before = before;
             this.after = after;
+
         }
 
         @Override
@@ -396,6 +417,21 @@ public final class PausableThreadPoolExecutor extends ThreadPoolExecutor impleme
      * @throws UnsupportedOperationException always
      */
     @Override
+    public void allowCoreThreadTimeOut(boolean value) {
+        throw new UnsupportedOperationException();
+    }
+
+    private PausableThreadPoolExecutor setAllowCoreThreadTimeOut(final boolean allowCoreThreadTimeOut) {
+        super.allowCoreThreadTimeOut(allowCoreThreadTimeOut);
+        return this;
+    }
+
+    /**
+     * This operation is not supported.
+     * 
+     * @throws UnsupportedOperationException always
+     */
+    @Override
     public void setCorePoolSize(final int corePoolSize) {
         throw new UnsupportedOperationException();
     }
@@ -406,7 +442,36 @@ public final class PausableThreadPoolExecutor extends ThreadPoolExecutor impleme
      * @throws UnsupportedOperationException always
      */
     @Override
+    public void setKeepAliveTime(long time, TimeUnit unit) {
+        throw new UnsupportedOperationException();
+    }
+
+    /**
+     * This operation is not supported.
+     * 
+     * @throws UnsupportedOperationException always
+     */
+    @Override
     public void setMaximumPoolSize(final int maximumPoolSize) {
+        throw new UnsupportedOperationException();
+    }
+
+    /**
+     * This operation is not supported.
+     * 
+     * @throws UnsupportedOperationException always
+     */
+    @Override
+    public void setRejectedExecutionHandler(RejectedExecutionHandler handler) {
+        throw new UnsupportedOperationException();
+    }
+
+    /**
+     * This operation is not supported.
+     * 
+     * @throws UnsupportedOperationException always
+     */
+    public void setThreadFactory(ThreadFactory threadFactory) {
         throw new UnsupportedOperationException();
     }
 
@@ -436,9 +501,231 @@ public final class PausableThreadPoolExecutor extends ThreadPoolExecutor impleme
         return count;
     }
 
+//    @Override
+//    public String toString() {
+//        return super.toString() + " (" + (isPaused() ? "paused)" : "not paused)");
+//    }
+
     @Override
     public String toString() {
-        return super.toString() + " (" + (isPaused() ? "paused)" : "not paused)");
+        return isPaused() ? super.toString() + " (paused)" : super.toString();
+    }
+
+    /**
+     * Returns a builder which creates {@code PausableThreadPoolExecutor} instances that use a fixed number of threads is
+     * equal to the {@link Runtime#availableProcessors() availableProcessors}.
+     * 
+     * @return a builder which creates {@code PausableThreadPoolExecutor}s instances that use a fixed number of threads is
+     *         equal to the {@link Runtime#availableProcessors() availableProcessors}
+     */
+    public static FixedThreadPoolBuilder fixedThreadPool() {
+        return new FixedThreadPoolBuilder(Runtime.getRuntime().availableProcessors());
+    }
+
+    /**
+     * Returns a builder which creates {@code PausableThreadPoolExecutor} instances that use a fixed number of threads.
+     * 
+     * @param nthreads the size of the pool
+     * @return a builder which creates {@code PausableThreadPoolExecutor}s instances that use a fixed number of threads
+     */
+    public static FixedThreadPoolBuilder fixedThreadPool(final int nthreads) {
+        if (nthreads < 1)
+            throw new IllegalArgumentException("nthreads < 1");
+        return new FixedThreadPoolBuilder(nthreads);
+    }
+
+    /**
+     * Returns a builder which creates {@code PausableThreadPoolExecutor} instances that use a single worker thread.
+     * 
+     * @return a builder which creates {@code PausableThreadPoolExecutor}s instances that use a single worker thread
+     */
+    public static FixedThreadPoolBuilder singleThreadPool() {
+        return new FixedThreadPoolBuilder(1);
+    }
+
+    /**
+     * Returns a builder which creates {@code PausableThreadPoolExecutor} instances which create new threads as needed.
+     * 
+     * @return a builder which creates {@code PausableThreadPoolExecutor}s instances which create new threads as needed
+     */
+    public static CachedThreadPoolBuilder cachedThreadPool() {
+        return new CachedThreadPoolBuilder();
+    }
+
+    /**
+     * The base class for {@link FixedThreadPoolBuilder FixedThreadPoolBuilder} and {@link CachedThreadPoolBuilder
+     * CachedThreadPoolBuilder}.
+     */
+    public static abstract class AbstractBuilder<B extends AbstractBuilder<?>> {
+
+        protected BlockingQueue<Runnable> queue = null;
+        protected ThreadFactory factory = null;
+        protected RejectedExecutionHandler handler = null;
+        protected long keepAliveTime = 0;
+
+        AbstractBuilder() {
+        }
+
+        /**
+         * Sets the queue to use for holding tasks before they are executed.
+         * 
+         * @param queue the queue to use for holding tasks before they are executed
+         * @return {@code this} builder instance
+         */
+        public B setWorkQueue(final BlockingQueue<Runnable> queue) {
+            requireNonNull(queue, "queue == null");
+            this.queue = queue;
+            return self();
+        }
+
+        /**
+         * Sets the factory to use when the executor creates a new thread.
+         * 
+         * @param factory the factory to use when the executor creates a new thread
+         * @return {@code this} builder instance
+         */
+        public B setThreadFactory(final ThreadFactory factory) {
+            requireNonNull(factory, "factory == null");
+            this.factory = factory;
+            return self();
+        }
+
+        /**
+         * Sets the handler to use when execution is blocked because the thread bounds and queue capacities are reached.
+         * 
+         * @param handler the handler to use when execution is blocked because the thread bounds and queue capacities are
+         *                reached
+         * @return {@code this} builder instance
+         */
+        public B setRejectedExecutionHandler(final RejectedExecutionHandler handler) {
+            requireNonNull(handler, "handler == null");
+            this.handler = handler;
+            return self();
+        }
+
+        /**
+         * Sets the time limit for which threads may remain idle before being terminated.
+         * 
+         * @param duration the time limit for which threads may remain idle before being terminated
+         * @throws ArithmeticException if duration is too large to fit in a {@code long} milliseconds value
+         * @implNote the specified {@code duration} will converted into {@link TimeUnit#MILLISECONDS milliseconds}
+         * @return {@code this} builder instance
+         */
+        public B setKeepAliveTime(final Duration duration) {
+            requireNonNull(duration, "duration == null");
+            this.keepAliveTime = duration.toMillis();
+            return self();
+        }
+
+        protected static PausableThreadPoolExecutor create(final int poolSize, final long keepAliveTime, final BlockingQueue<Runnable> queue, final ThreadFactory factory, final RejectedExecutionHandler handler) {
+            return create(poolSize, poolSize, keepAliveTime, queue, factory, handler);
+        }
+
+        protected static PausableThreadPoolExecutor create(final int corePoolSize, final int maxPoolSize, final long keepAliveTime, final BlockingQueue<Runnable> queue, final ThreadFactory factory, final RejectedExecutionHandler handler) {
+            //@formatter:off
+            return new PausableThreadPoolExecutor(corePoolSize,
+                                                  maxPoolSize,
+                                                  keepAliveTime,
+                                                  TimeUnit.MILLISECONDS,
+                                                  queue,
+                                                  factory == null ? defaultThreadFactory() : factory,
+                                                  handler == null ? new AbortPolicy()      : handler
+                                ).setAllowCoreThreadTimeOut(keepAliveTime > 0);
+            //@formatter:on
+        }
+
+        protected abstract B self();
+    }
+
+    /**
+     * A builder which creates {@code PausableThreadPoolExecutor} instances that use a fixed number of threads. The default
+     * number of threads is equal to the {@link Runtime#availableProcessors() availableProcessors}.
+     * <p>
+     * If the {@link #setWorkQueue(BlockingQueue) work queue}, {@link #setThreadFactory(ThreadFactory) thread factory},
+     * {@link #setKeepAliveTime(Duration) keep-alive time}, and
+     * {@link #setRejectedExecutionHandler(RejectedExecutionHandler) rejected execution handler} are left unspecified a
+     * {@link LinkedBlockingQueue}, {@link Executors#defaultThreadFactory() default thread factory}, {@link Duration#ZERO no
+     * keep-alive time}, and {@link java.util.concurrent.ThreadPoolExecutor.AbortPolicy AbortPolicy} will be used
+     * respectively.
+     */
+    public static final class FixedThreadPoolBuilder extends AbstractBuilder<FixedThreadPoolBuilder> {
+
+        private final int poolSize;
+
+        private FixedThreadPoolBuilder(final int poolSize) {
+            this.poolSize = poolSize;
+        }
+
+//        /**
+//         * Sets the number of threads to keep in the pool.
+//         * 
+//         * @param poolSize the number of threads to keep in the pool
+//         * @return {@code this} builder instance
+//         */
+//        public FixedThreadPoolBuilder setPoolSize(final int poolSize) {
+//            if (poolSize < 1)
+//                throw new IllegalArgumentException("poolSize < 1");
+//            this.poolSize = poolSize;
+//            return this;
+//        }
+
+        /**
+         * Builds a new {@code PausableThreadPoolExecutor} using the previously specified criteria.
+         * <p>
+         * If the {@link #setWorkQueue(BlockingQueue) work queue}, {@link #setThreadFactory(ThreadFactory) thread factory},
+         * {@link #setKeepAliveTime(Duration) keep-alive time}, or {@link #setRejectedExecutionHandler(RejectedExecutionHandler)
+         * rejected execution handler} are left unspecified a {@link LinkedBlockingQueue},
+         * {@link Executors#defaultThreadFactory() default thread factory}, {@link Duration#ZERO no keep-alive time}, and
+         * {@link java.util.concurrent.ThreadPoolExecutor.AbortPolicy AbortPolicy} will be used respectively.
+         * 
+         * @return a new {@code PausableThreadPoolExecutor} using the previously specified criteria
+         */
+        public PausableThreadPoolExecutor create() {
+            return create(poolSize, keepAliveTime, queue == null ? new LinkedBlockingQueue<>() : queue, factory, handler);
+        }
+
+        @Override
+        protected FixedThreadPoolBuilder self() {
+            return this;
+        }
+
+    }
+
+    /**
+     * A builder which creates {@code PausableThreadPoolExecutor} instances which create new threads as needed.
+     * <p>
+     * If the {@link #setWorkQueue(BlockingQueue) work queue}, {@link #setThreadFactory(ThreadFactory) thread factory},
+     * {@link #setKeepAliveTime(Duration) keep-alive time}, and
+     * {@link #setRejectedExecutionHandler(RejectedExecutionHandler) rejected execution handler} are left unspecified a
+     * {@link SynchronousQueue}, {@link Executors#defaultThreadFactory() default thread factory},
+     * {@code 60 milliseconds keep-alive time}, and {@link java.util.concurrent.ThreadPoolExecutor.AbortPolicy AbortPolicy}
+     * will be used respectively.
+     */
+    public static final class CachedThreadPoolBuilder extends AbstractBuilder<CachedThreadPoolBuilder> {
+
+        private CachedThreadPoolBuilder() {
+        }
+
+        /**
+         * Builds a new {@code PausableThreadPoolExecutor} using the previously specified criteria.
+         * <p>
+         * If the {@link #setWorkQueue(BlockingQueue) work queue}, {@link #setThreadFactory(ThreadFactory) thread factory},
+         * {@link #setKeepAliveTime(Duration) keep-alive time}, or {@link #setRejectedExecutionHandler(RejectedExecutionHandler)
+         * rejected execution handler} are left unspecified a {@link SynchronousQueue}, {@link Executors#defaultThreadFactory()
+         * default thread factory}, {@code 60 milliseconds keep-alive time}, and
+         * {@link java.util.concurrent.ThreadPoolExecutor.AbortPolicy AbortPolicy} will be used respectively.
+         * 
+         * @return a new {@code PausableThreadPoolExecutor} using the previously specified criteria
+         */
+        public PausableThreadPoolExecutor create() {
+            return create(0, Integer.MAX_VALUE, keepAliveTime == 0 ? 6000 : keepAliveTime, queue == null ? new SynchronousQueue<>() : queue, factory, handler);
+        }
+
+        @Override
+        protected CachedThreadPoolBuilder self() {
+            return this;
+        }
+
     }
 
 }

@@ -29,6 +29,15 @@
         </license>
     </licenses>
 
+    <dependencies>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-engine</artifactId>
+            <version>5.8.2</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
     <build>
         <plugins>
             <plugin>
@@ -54,7 +63,8 @@
                 <version>${maven-javadoc-plugin.version}</version>
 
                 <configuration>
-                    <sourcepath>${project.build.sourceDirectory}:${java.sourceDirectory}:${guava.sourceDirectory}</sourcepath>
+                    <sourcepath>
+                        ${project.build.sourceDirectory}:${java.sourceDirectory}:${guava.sourceDirectory}</sourcepath>
                     <subpackages>software.leonov</subpackages>
                     <quiet>false</quiet>
                     <notimestamp>true</notimestamp>
@@ -62,7 +72,6 @@
                     <docencoding>UTF-8</docencoding>
                     <charset>UTF-8</charset>
                     <show>public</show>
-                    <doclint>-syntax</doclint>
                     <linksource>true</linksource>
                     <doctitle>
                         <![CDATA[
@@ -76,6 +85,23 @@
                         <link>
                             https://google.github.io/guava/releases/26.0-jre/api/docs/</link>
                     </links>
+                    <tags>
+                        <tag>
+                            <name>apiNote</name>
+                            <placement>a</placement>
+                            <head>API Note:</head>
+                        </tag>
+                        <tag>
+                            <name>implSpec</name>
+                            <placement>a</placement>
+                            <head>Implementation Requirements:</head>
+                        </tag>
+                        <tag>
+                            <name>implNote</name>
+                            <placement>a</placement>
+                            <head>Implementation Note:</head>
+                        </tag>
+                    </tags>
                 </configuration>
                 <executions>
                     <execution>

@@ -12,6 +12,29 @@ import java.util.concurrent.TimeUnit;
 public interface PausableExecutorService extends ExecutorService {
 
     /**
+     * Returns {@code true} if the {@code ExecutorService} is paused.
+     * 
+     * @return {@code true} if the {@code ExecutorService} is paused
+     */
+    public boolean isPaused();
+
+    /**
+     * Attempts to pause the processing of pending tasks.
+     * <p>
+     * Calling this method is a no-op if the {@code ExecutorService} is already paused.
+     * 
+     * @return {@code true} if successful or {@code false} if the {@code ExecutorService} cannot be paused
+     */
+    public boolean pause();
+
+    /**
+     * Resumes to processing of pending tasks.
+     * <p>
+     * Calling this method is a no-op if the {@code ExecutorService} is not paused.
+     */
+    public void resume();
+
+    /**
      * Waits for the {@code ExecutorService} to terminate after a shutdown request.
      * <p>
      * <b>Warning:</b> This method will block forever until the {@code ExecutorService} terminates. If active tasks are
@@ -22,31 +45,6 @@ public interface PausableExecutorService extends ExecutorService {
     default void ensureTermination() throws InterruptedException {
         awaitTermination(Long.MAX_VALUE, TimeUnit.DAYS);
     }
-
-    /**
-     * Returns {@code true} if the {@code ExecutorService} is paused.
-     * 
-     * @return {@code true} if the {@code ExecutorService} is paused
-     */
-    public boolean isPaused();
-
-    /**
-     * Attempts to pause the processing of pending tasks.
-     * <p>
-     * This method is required to be idempotent. Calling this method is a no-op if the {@code ExecutorService} is already
-     * paused.
-     * 
-     * @return {@code true} if successful or {@code false} if the {@code ExecutorService} cannot be paused
-     */
-    public boolean pause();
-
-    /**
-     * Resumes to processing of pending tasks.
-     * <p>
-     * This method is required to be idempotent. Calling this method is a no-op if the {@code ExecutorService} is not
-     * paused.
-     */
-    public void resume();
 
     /**
      * Stops the processing of pending tasks but does not attempt to stop actively executing tasks. All pending tasks are
