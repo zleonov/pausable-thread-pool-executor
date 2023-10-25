@@ -62,7 +62,6 @@ public final class BlockingReference<T> {
      * @throws ArithmeticException  if duration is too large to fit in a {@code long} nanoseconds value
      * @throws InterruptedException if the calling thread is interrupted while waiting
      * @throws NullPointerException if {@code duration} is {@code null}
-     * @implNote this method
      */
     public T get(final Duration duration) throws InterruptedException {
         requireNonNull(duration, "duration == null");
