@@ -21,7 +21,7 @@ import java.util.concurrent.locks.ReentrantLock;
  */
 public final class BlockingReference<T> {
 
-    private T value;
+    private volatile T value;
     private final ReentrantLock lock = new ReentrantLock();
     private final Condition condition = lock.newCondition();
 
