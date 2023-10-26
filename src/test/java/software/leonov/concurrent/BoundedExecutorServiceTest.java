@@ -31,7 +31,7 @@ class BoundedExecutorServiceTest {
         exec.execute(new Task());
         System.out.println(executor);
         
-        ExecutorServices.shutdownAndEnsureTermination(exec);
+        ExecutorServices.shutdownAndAwaitTermination(exec);
     }
 
     private static class Task implements Runnable {

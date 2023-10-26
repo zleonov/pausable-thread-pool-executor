@@ -71,14 +71,14 @@ public final class ExecutorServices {
      * @param exec the specified {@code ExecutorService}
      * @throws InterruptedException if interrupted while waiting
      */
-    public static void ensureTermination(final ExecutorService exec) throws InterruptedException {
+    public static void awaitTermination(final ExecutorService exec) throws InterruptedException {
         requireNonNull(exec, "exec == null");
         exec.awaitTermination(Long.MAX_VALUE, TimeUnit.DAYS);
     }
 
     /**
      * Attempts to {@link ExecutorService#shutdown() shutdown} the specified {@code ExecutorService} and
-     * {@link #ensureTermination(ExecutorService) waits} for it to terminate.
+     * {@link #awaitTermination(ExecutorService) waits} for it to terminate.
      * <p>
      * <b>Warning:</b> This method will block forever until the {@code ExecutorService} terminates. If active tasks are
      * deadlocked this thread must be interrupted.
@@ -86,15 +86,15 @@ public final class ExecutorServices {
      * @param exec the specified {@code ExecutorService}
      * @throws InterruptedException if interrupted while waiting
      */
-    public static void shutdownAndEnsureTermination(final ExecutorService exec) throws InterruptedException {
+    public static void shutdownAndAwaitTermination(final ExecutorService exec) throws InterruptedException {
         requireNonNull(exec, "exec == null");
         exec.shutdown();
-        ensureTermination(exec);
+        awaitTermination(exec);
     }
 
     /**
      * Attempts to {@link ExecutorService#shutdownNow() shutdownNow} the specified {@code ExecutorService} and
-     * {@link #ensureTermination(ExecutorService) waits} for it to terminate.
+     * {@link #awaitTermination(ExecutorService) waits} for it to terminate.
      * <p>
      * <b>Warning:</b>This method will block forever until the {@code ExecutorService} terminates. If active tasks are
      * deadlocked this thread must be interrupted.
@@ -102,15 +102,15 @@ public final class ExecutorServices {
      * @param exec the specified {@code ExecutorService}
      * @throws InterruptedException if interrupted while waiting
      */
-    public static void shutdownNowAndEnsureTermination(final ExecutorService exec) throws InterruptedException {
+    public static void shutdownNowAndAwaitTermination(final ExecutorService exec) throws InterruptedException {
         requireNonNull(exec, "exec == null");
         exec.shutdownNow();
-        ensureTermination(exec);
+        awaitTermination(exec);
     }
 
     /**
      * Attempts to {@link #shutdownFast(ThreadPoolExecutor)} the specified {@code ThreadPoolExecutor} and
-     * {@link #ensureTermination(ExecutorService) waits} for it to terminate.
+     * {@link #awaitTermination(ExecutorService) waits} for it to terminate.
      * <p>
      * <b>Warning:</b> This method will block forever until the {@code ThreadPoolExecutor} terminates. If active tasks are
      * deadlocked this thread must be interrupted.
@@ -118,17 +118,17 @@ public final class ExecutorServices {
      * @param exec the specified {@code ThreadPoolExecutor}
      * @throws InterruptedException if interrupted while waiting
      */
-    public static void shutdownFastAndEnsureTermination(final ThreadPoolExecutor exec) throws InterruptedException {
+    public static void shutdownFastAndAwaitTermination(final ThreadPoolExecutor exec) throws InterruptedException {
         requireNonNull(exec, "exec == null");
         shutdownFast(exec);
-        ensureTermination(exec);
+        awaitTermination(exec);
     }
 
     /**
      * Halts the processing of pending tasks but does not attempt to stop actively executing tasks. All pending tasks are
      * drained (removed) from the work queue and returned when this method completes.
      * <p>
-     * This method does not wait for actively executing tasks to terminate. Use {@link #ensureTermination(ExecutorService)}
+     * This method does not wait for actively executing tasks to terminate. Use {@link #awaitTermination(ExecutorService)}
      * or {@link ThreadPoolExecutor#awaitTermination(long, TimeUnit)} to do that.
      * <p>
      * This method is the middle ground between {@link ExecutorService#shutdown()} and

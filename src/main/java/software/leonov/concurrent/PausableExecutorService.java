@@ -42,7 +42,7 @@ public interface PausableExecutorService extends ExecutorService {
      * 
      * @throws InterruptedException if interrupted while waiting
      */
-    default void ensureTermination() throws InterruptedException {
+    default void awaitTermination() throws InterruptedException {
         awaitTermination(Long.MAX_VALUE, TimeUnit.DAYS);
     }
 

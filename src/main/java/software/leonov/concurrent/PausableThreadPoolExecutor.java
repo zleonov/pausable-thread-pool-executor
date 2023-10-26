@@ -69,7 +69,7 @@ import java.util.function.Consumer;
  * <p>
  * <b>Convenience methods</b><br>
  * The {@link #shutdownFast()} method is the middle ground between {@link #shutdown() shutdown()} and
- * {@link #shutdownNow()} and the {@link #ensureTermination()} method is a shorthand for
+ * {@link #shutdownNow()} and the {@link #awaitTermination()} method is a shorthand for
  * {@link #awaitTermination(long, TimeUnit) awaitTermination(Long.MAX_VALUE, TimeUnit.DAYS)}.
  * 
  * @author Zhenya Leonov
@@ -86,7 +86,7 @@ public final class PausableThreadPoolExecutor extends ThreadPoolExecutor impleme
     };
 
     private final ReentrantLock lock = new ReentrantLock();
-    private final Condition uppaused = lock.newCondition();
+    private final Condition condition = lock.newCondition();
     private boolean paused = false;
 
     private Consumer<Runnable> beforeExecute = DO_NOTHING_CONSUMER;
@@ -192,7 +192,7 @@ public final class PausableThreadPoolExecutor extends ThreadPoolExecutor impleme
             if (paused) {
                 beforePause.accept(r);
                 while (paused)
-                    uppaused.await();
+                    condition.await();
                 afterPause.accept(r);
             }
         } catch (final InterruptedException e) {
@@ -243,7 +243,7 @@ public final class PausableThreadPoolExecutor extends ThreadPoolExecutor impleme
         try {
             if (isPaused()) {
                 paused = false;
-                uppaused.signalAll();
+                condition.signalAll();
             }
         } finally {
             lock.unlock();
