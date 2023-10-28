@@ -4,7 +4,6 @@ import static java.util.Objects.requireNonNull;
 
 import java.time.Duration;
 import java.util.Objects;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
@@ -55,6 +54,16 @@ public final class BlockingReference<T> {
     }
 
     /**
+     * Returns the current value, blocking indefinitely if the value is not set.
+     *
+     * @return the current value
+     */
+    public T getUninterruptibly() {
+        final T localValue = value;
+        return localValue == null ? takeUninterruptibly() : localValue;
+    }
+
+    /**
      * Returns the current value, blocking if the value is not set or the specified time elapses.
      *
      * @param duration the maximum time to wait for the value to be set
@@ -87,7 +96,19 @@ public final class BlockingReference<T> {
         lock.lock();
         try {
             while (value == null)
-                condition.await(duration.toNanos(), TimeUnit.NANOSECONDS);
+                condition.awaitNanos(duration.toNanos());
+            return value;
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    private T takeUninterruptibly() {
+
+        lock.lock();
+        try {
+            while (value == null)
+                condition.awaitUninterruptibly();
             return value;
         } finally {
             lock.unlock();
