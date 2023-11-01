@@ -3,7 +3,7 @@ import software.leonov.concurrent.PausableThreadPoolExecutor;
 public class Test {
 
     public static void main(String[] args) {
-        PausableThreadPoolExecutor exec = PausableThreadPoolExecutor.fixedThreadPool().create();
+        PausableThreadPoolExecutor exec = PausableThreadPoolExecutor.newFixedThreadPool().create();
         
         exec.shutdown();
         

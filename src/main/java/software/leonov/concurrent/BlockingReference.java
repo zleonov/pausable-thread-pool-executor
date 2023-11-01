@@ -11,18 +11,19 @@ import java.util.concurrent.locks.ReentrantLock;
 /**
  * A thread-safe blocking reference that allows threads to wait for a value to be set.
  * <p>
- * This class has similar semantics to {@link AtomicReference} but is designed for situations where synchronization is
- * necessary, and efficient use of system resources is a concern.
+ * This class has similar semantics to {@link AtomicReference} but is designed for situations where synchronization
+ * between threads is necessary.
  *
+ * @implNote This class handles the possibly of <i>spurious wakeups</i> internally
  * @param <T> the type of value referred by this reference
  * 
  * @author Zhenya Leonov
  */
 public final class BlockingReference<T> {
 
-    private volatile T value;
-    private final ReentrantLock lock = new ReentrantLock();
-    private final Condition condition = lock.newCondition();
+    private volatile T          value;
+    private final ReentrantLock lock      = new ReentrantLock();
+    private final Condition     condition = lock.newCondition();
 
     /**
      * Constructs a new {@code BlockingReference} with no initial value.
@@ -160,7 +161,7 @@ public final class BlockingReference<T> {
     }
 
     /**
-     * Clears the current value. to be set.
+     * Clears the current value.
      */
     public void clear() {
         lock.lock();

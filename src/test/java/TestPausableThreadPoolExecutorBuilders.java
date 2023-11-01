@@ -14,54 +14,54 @@ class TestPausableThreadPoolExecutorBuilders {
 
     @Test
     void test_cached_builder_core_pool_size() {
-        assertEquals(0, PausableThreadPoolExecutor.cachedThreadPool().create().getCorePoolSize());
+        assertEquals(0, PausableThreadPoolExecutor.newCachedThreadPool().create().getCorePoolSize());
     }
 
     @Test
     void test_cached_builder_max_pool_size() {
-        assertEquals(Integer.MAX_VALUE, PausableThreadPoolExecutor.cachedThreadPool().create().getMaximumPoolSize());
+        assertEquals(Integer.MAX_VALUE, PausableThreadPoolExecutor.newCachedThreadPool().create().getMaximumPoolSize());
     }
 
     @Test
     void test_cached_builder_queue() {
-        assertInstanceOf(SynchronousQueue.class, PausableThreadPoolExecutor.cachedThreadPool().create().getQueue());
+        assertInstanceOf(SynchronousQueue.class, PausableThreadPoolExecutor.newCachedThreadPool().create().getQueue());
     }
 
     @Test
     void test_cached_builder_keepAliveTime() {
-        assertEquals(60L, PausableThreadPoolExecutor.cachedThreadPool().create().getKeepAliveTime(TimeUnit.SECONDS));
+        assertEquals(60L, PausableThreadPoolExecutor.newCachedThreadPool().create().getKeepAliveTime(TimeUnit.SECONDS));
     }
 
     @Test
     void test_cached_builder_handler() {
-        assertInstanceOf(ThreadPoolExecutor.AbortPolicy.class, PausableThreadPoolExecutor.cachedThreadPool().create().getRejectedExecutionHandler());
+        assertInstanceOf(ThreadPoolExecutor.AbortPolicy.class, PausableThreadPoolExecutor.newCachedThreadPool().create().getRejectedExecutionHandler());
     }
 
     @Test
     void test_fixed_builder_core_pool_size() {
-        assertEquals(Runtime.getRuntime().availableProcessors(), PausableThreadPoolExecutor.fixedThreadPool().create().getCorePoolSize());
-        assertEquals(1, PausableThreadPoolExecutor.fixedThreadPool(1).create().getCorePoolSize());
+        assertEquals(Runtime.getRuntime().availableProcessors(), PausableThreadPoolExecutor.newFixedThreadPool().create().getCorePoolSize());
+        assertEquals(1, PausableThreadPoolExecutor.newFixedThreadPool(1).create().getCorePoolSize());
     }
 
     @Test
     void test_fixed_builder_max_pool_size() {
-        assertEquals(Runtime.getRuntime().availableProcessors(), PausableThreadPoolExecutor.fixedThreadPool().create().getMaximumPoolSize());
-        assertEquals(1, PausableThreadPoolExecutor.fixedThreadPool(1).create().getMaximumPoolSize());
+        assertEquals(Runtime.getRuntime().availableProcessors(), PausableThreadPoolExecutor.newFixedThreadPool().create().getMaximumPoolSize());
+        assertEquals(1, PausableThreadPoolExecutor.newFixedThreadPool(1).create().getMaximumPoolSize());
     }
 
     @Test
     void test_fixed_builder_queue() {
-        assertInstanceOf(LinkedBlockingQueue.class, PausableThreadPoolExecutor.fixedThreadPool().create().getQueue());
+        assertInstanceOf(LinkedBlockingQueue.class, PausableThreadPoolExecutor.newFixedThreadPool().create().getQueue());
     }
 
     @Test
     void test_fixed_builder_keepAliveTime() {
-        assertEquals(0L, PausableThreadPoolExecutor.fixedThreadPool().create().getKeepAliveTime(TimeUnit.SECONDS));
+        assertEquals(0L, PausableThreadPoolExecutor.newFixedThreadPool().create().getKeepAliveTime(TimeUnit.SECONDS));
     }
 
     @Test
     void test_fixed_builder_handler() {
-        assertInstanceOf(ThreadPoolExecutor.AbortPolicy.class, PausableThreadPoolExecutor.fixedThreadPool().create().getRejectedExecutionHandler());
+        assertInstanceOf(ThreadPoolExecutor.AbortPolicy.class, PausableThreadPoolExecutor.newFixedThreadPool().create().getRejectedExecutionHandler());
     }
 
 }

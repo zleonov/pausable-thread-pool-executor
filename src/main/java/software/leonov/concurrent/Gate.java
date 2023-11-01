@@ -10,16 +10,20 @@ import java.util.concurrent.locks.AbstractQueuedSynchronizer;
  * A boolean synchronization mechanism with semantics similar to {@link CountDownLatch#CountDownLatch(int) new
  * CountDownLatch(1)}, offering more intuitive naming conventions, and additional functionality.
  * <p>
- * A {@code Gate} is {@link #isOpen() open} or closed. Threads can {@link #await() wait} for a closed gate to open or
- * {@link #guard()} an open gate until it closes.
+ * A {@code Gate} is either {@link #isOpen() open} or closed. Threads can {@link #await() wait} for a closed gate to
+ * open or {@link #guard()} an open gate until it closes.
+ * 
+ * @implNote This class uses {@code AbstractQueuedSynchronizer} internally which handles the possibly of <i>spurious
+ *           wakeups</i>
+ * @author Zhenya Leonov
  */
-public final class Gate {
+public final class Gate implements Awaitable {
 
-    private final static int OPEN = 0;
+    private final static int OPEN   = 0;
     private final static int CLOSED = 1;
 
-    @SuppressWarnings("serial")
     private static class Sync extends AbstractQueuedSynchronizer {
+        private static final long serialVersionUID = -3204469639067561686L;
 
         Sync(final int state) {
             setState(state);
@@ -80,29 +84,37 @@ public final class Gate {
     }
 
     /**
-     * Causes the current thread to wait until the gate is open.
-     *
-     * @throws InterruptedException if the thread is interrupted while waiting
+     * Causes the current thread to wait until the gate is open or the thread is {@link Thread#interrupt interrupted}.
      */
+    @Override
     public void await() throws InterruptedException {
         sync.acquireSharedInterruptibly(OPEN);
     }
 
     /**
-     * Causes the current thread to wait until the gate is open or the waiting time elapsed.
-     *
-     * @param timeout the maximum time to wait
-     * @return {@code true} the gate was opened or {@code false} if the waiting time elapsed
-     * @throws ArithmeticException  if duration is too large to fit in a {@code long} nanoseconds value
-     * @throws InterruptedException if the thread is interrupted while waiting
+     * Causes the current thread to wait until the gate is open, the thread is {@link Thread#interrupt interrupted}, or the
+     * specified waiting time elapses.
      */
+    @Override
     public boolean await(final Duration timeout) throws InterruptedException {
         requireNonNull(timeout, "timeout == null");
         return sync.tryAcquireSharedNanos(OPEN, timeout.toNanos());
     }
 
     /**
-     * Causes the current thread to wait until the gate is closed.
+     * Causes the current thread to wait indefinitely until the gate is open.
+     * <p>
+     * If the current thread is {@link Thread#interrupted() interrupted} while waiting, it will continue to wait until the
+     * gate is open. When this method returns the thread's {@link Thread#isInterrupted() interrupted status} will still be
+     * set.
+     */
+    @Override
+    public void awaitUninterruptibly() {
+        sync.tryAcquireShared(OPEN);
+    }
+
+    /**
+     * Causes the current thread to wait until the gate is closed or the thread is {@link Thread#interrupt interrupted}.
      *
      * @throws InterruptedException if the thread is interrupted while waiting
      */
@@ -111,14 +123,29 @@ public final class Gate {
     }
 
     /**
-     * Causes the current thread to wait until the gate is closed or the waiting time elapsed.
+     * Causes the current thread to wait until the gate is closed, the thread is {@link Thread#interrupt interrupted}, or
+     * the specified waiting time elapses.
      *
      * @param timeout the maximum time to wait
      * @return {@code true} the gate was closed or {@code false} if the waiting time elapsed
-     * @throws InterruptedException if the thread is interrupted while waiting
+     * @throws ArithmeticException  if duration is too large to fit in a {@code long} nanoseconds value
+     * @throws InterruptedException if the current thread is interrupted (and interruption of thread suspension is
+     *                              supported)
+     * @throws NullPointerException if {@code duration} is {@code null}
      */
     public boolean guard(final Duration timeout) throws InterruptedException {
         return sync.tryAcquireSharedNanos(CLOSED, timeout.toNanos());
+    }
+
+    /**
+     * Causes the current thread to wait indefinitely until the gate is closed.
+     * <p>
+     * If the current thread is {@link Thread#interrupted() interrupted} while waiting, it will continue to wait until the
+     * gate is closed. When this method returns the thread's {@link Thread#isInterrupted() interrupted status} will still be
+     * set.
+     */
+    public void guardUninterruptibly() {
+        sync.tryAcquireShared(CLOSED);
     }
 
     /**
@@ -133,6 +160,11 @@ public final class Gate {
      */
     public void close() {
         sync.releaseShared(CLOSED);
+    }
+
+    @Override
+    public String toString() {
+        return Counter.class.getSimpleName() + " [" + (isOpen() ? "open" : "closed") + "]";
     }
 
 }
