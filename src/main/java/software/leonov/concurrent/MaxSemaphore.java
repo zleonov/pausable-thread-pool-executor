@@ -4,12 +4,15 @@ import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 
 /**
- * A <i>fake</i> {@link Semaphore} that always has {@code Integer.MAX_VALUE} {@link #availablePermits() available
- * permits} and avoids the cost of any locking. The {@code acquire} methods will never block, {@link #getQueuedThreads()
- * getQueuedThreads()} will always return an empty collection, {@link #hasQueuedThreads() hasQueuedThreads()} will
- * always return {@code false} and so forth. Useful for testing and to simplify cumbersome code where semaphores may
- * need to be used under some conditions <i>but not others</i>.
- * 
+ * A <i>mock</i> {@link Semaphore} implementation that provides unlimited permits. This semaphore always reports
+ * {@code Integer.MAX_VALUE} {@link #availablePermits() available permits} and performs no locking operations.
+ * <p>
+ * All {@code acquire} methods are non-blocking, {@link #getQueuedThreads() getQueuedThreads()} always returns an empty
+ * collection, and {@link #hasQueuedThreads() hasQueuedThreads()} always returns {@code false}.
+ * <p>
+ * Particularly useful for testing scenarios and for simplifying code paths where semaphore-controlled access is only
+ * required under certain conditions.
+ *
  * @author Zhenya Leonov
  */
 public final class MaxSemaphore extends Semaphore {

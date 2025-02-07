@@ -14,7 +14,7 @@ public final class TestUtilities {
 
         try {
             long remaining = TimeUnit.MILLISECONDS.toNanos(millis);
-            long end = System.nanoTime() + remaining;
+            final long end = System.nanoTime() + remaining;
             while (true) {
                 try {
                     NANOSECONDS.sleep(remaining);

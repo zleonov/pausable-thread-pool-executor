@@ -3,6 +3,7 @@ package software.leonov.concurrent;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.util.IntSummaryStatistics;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
@@ -12,31 +13,31 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-class BoundedExecutorServiceTest {
+class BoundedExecutorTest {
 
     private static AtomicInteger count;
     private static int ntasks;
     private static IntSummaryStatistics stats;
-    private static  BoundedExecutorService exec;
+    private BoundedExecutor exec;
 
     @BeforeEach
     void beforeEach() {
         ntasks = 5;
         count = new AtomicInteger();
         stats = new IntSummaryStatistics();
-        exec = new BoundedExecutorService(Executors.newCachedThreadPool(), ntasks);
+        exec = new BoundedExecutor(Executors.newCachedThreadPool(), ntasks);
     }
 
     @AfterEach
     void afterEach() throws InterruptedException {
-        ExecutorServices.shutdownAndAwaitTermination(exec);
+        ExecutorServices.shutdownAndAwaitTermination((ExecutorService) exec.getDelegate());
     }
 
     @Test
     void test_max_tasks() throws InterruptedException {
 
         for (int i = 0; i < ThreadLocalRandom.current().nextInt(ntasks, ntasks * 50); i++)
-            exec.submit(new Task());
+            exec.execute(new Task());
 
         assertEquals(ntasks, stats.getMax());
     }
@@ -61,4 +62,5 @@ class BoundedExecutorServiceTest {
             Thread.currentThread().interrupt();
         }
     }
+
 }

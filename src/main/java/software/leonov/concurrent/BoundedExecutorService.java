@@ -1,17 +1,14 @@
 package software.leonov.concurrent;
 
-import static java.util.Objects.requireNonNull;
-
+import java.util.Collection;
 import java.util.List;
-import java.util.concurrent.AbstractExecutorService;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.FutureTask;
-import java.util.concurrent.RejectedExecutionException;
-import java.util.concurrent.RunnableFuture;
-import java.util.concurrent.Semaphore;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 /**
  * A {@code BoundedExecutorService} enforces a limit on the maximum number of tasks that can be
@@ -26,113 +23,87 @@ import java.util.concurrent.TimeUnit;
  * {@code ExecutorService} class. Restricting task submissions alone does not directly affect the number of threads that
  * the underlying executor may create.
  * <p>
- * Consider an executor with an unrestricted thread pool. Let's also assume that this executor has been optimized to
- * initiate task execution immediately upon arrival. In this scenario, it's possible that a new thread is generated, at
- * some point between the completion of a preceding task and the start of the execution of an incoming task. For example
- * if the thread executing a previous task must tidy up after the task completes.
+ * Consider an executor with an unrestricted thread pool, that has been optimized to initiate task execution immediately
+ * upon arrival. When a new task is {@link ExecutorService#submit(Runnable) submitted} or executed, a new thread
+ * <i>may</i> be created to handle the incoming task, even after a preceding task's completion, for example if the
+ * thread executing the previous task is occupied with post-task cleanup or other internal operations.
  * 
  * @author Zhenya Leonov
  */
-public final class BoundedExecutorService extends AbstractExecutorService {
+public final class BoundedExecutorService extends BoundedExecutor implements ExecutorService {
 
-    private final ExecutorService exec;
-    private final Semaphore       semaphore;
-    private final int             ntasks;
-
-    /**
-     * Creates a new {@code BoundedExecutorService} which will limit the maximum number of tasks that can be executed
-     * concurrently by the underlying {@code ExecutorService}.
-     * 
-     * @param exec   the underlying executor service
-     * @param ntasks the maximum number of tasks allowed to execute concurrently
-     */
     public BoundedExecutorService(final ExecutorService exec, final int ntasks) {
-        requireNonNull(exec, "exec == null");
-
-        if (ntasks < 1)
-            throw new IllegalArgumentException("ntasks < 1");
-
-        this.exec      = exec;
-        this.semaphore = new Semaphore(ntasks);
-        this.ntasks    = ntasks;
-    }
-
-    @Override
-    public void execute(final Runnable command) {
-        requireNonNull(command, "command == null");
-
-        try {
-            semaphore.acquire();
-            exec.execute(() -> {
-                try {
-                    command.run();
-                } finally {
-                    semaphore.release();
-                }
-            });
-        } catch (final RejectedExecutionException e) {
-            semaphore.release();
-            throw e;
-        } catch (final InterruptedException e) {
-            semaphore.release();
-            Thread.currentThread().interrupt();
-        }
+        super(exec, ntasks);
     }
 
     @Override
     public void shutdown() {
-        exec.shutdown();
+        getDelegate().shutdown();
     }
 
     @Override
     public List<Runnable> shutdownNow() {
-        final List<Runnable> tasks = exec.shutdownNow();
-        semaphore.release(ntasks);
-        return tasks;
+        return getDelegate().shutdownNow();
     }
 
     @Override
     public boolean isShutdown() {
-        return exec.isShutdown();
+        return getDelegate().isShutdown();
     }
 
     @Override
     public boolean isTerminated() {
-        return exec.isTerminated();
+        return getDelegate().isTerminated();
     }
 
     @Override
-    public boolean awaitTermination(final long timeout, final TimeUnit unit) throws InterruptedException {
-        requireNonNull(unit, "unit == null");
-        return exec.awaitTermination(timeout, unit);
+    public boolean awaitTermination(long timeout, TimeUnit unit) throws InterruptedException {
+        return getDelegate().awaitTermination(timeout, unit);
     }
 
     @Override
-    protected <T> RunnableFuture<T> newTaskFor(final Runnable runnable, final T value) {
-        requireNonNull(runnable, "runnable == null");
-        return new Task<T>(runnable, value);
+    public <T> Future<T> submit(Callable<T> task) {
+        return getDelegate().submit(task);
     }
 
     @Override
-    protected <T> RunnableFuture<T> newTaskFor(final Callable<T> callable) {
-        requireNonNull(callable, "callable == null");
-        return new Task<T>(callable);
+    public <T> Future<T> submit(Runnable task, T result) {
+        return getDelegate().submit(task, result);
     }
 
-    private class Task<T> extends FutureTask<T> {
+    @Override
+    public Future<?> submit(Runnable task) {
+        return getDelegate().submit(task);
+    }
 
-        Task(final Runnable runnable, final T result) {
-            super(runnable, result);
-        }
+    @Override
+    public <T> List<Future<T>> invokeAll(Collection<? extends Callable<T>> tasks) throws InterruptedException {
+        return getDelegate().invokeAll(tasks);
+    }
 
-        Task(final Callable<T> callable) {
-            super(callable);
-        }
+    @Override
+    public <T> List<Future<T>> invokeAll(Collection<? extends Callable<T>> tasks, long timeout, TimeUnit unit) throws InterruptedException {
+        return getDelegate().invokeAll(tasks, timeout, unit);
+    }
 
-        @Override
-        protected void done() {
-            semaphore.release();
-        }
+    @Override
+    public <T> T invokeAny(Collection<? extends Callable<T>> tasks) throws InterruptedException, ExecutionException {
+        return getDelegate().invokeAny(tasks);
+    }
+
+    @Override
+    public <T> T invokeAny(Collection<? extends Callable<T>> tasks, long timeout, TimeUnit unit) throws InterruptedException, ExecutionException, TimeoutException {
+        return getDelegate().invokeAny(tasks, timeout, unit);
+    }
+
+    /**
+     * Returns the underlying {@code ExecutorService}.
+     * 
+     * @return the underlying {@code ExecutorService}
+     */
+    @Override
+    public ExecutorService getDelegate() {
+        return (ExecutorService) super.getDelegate();
     }
 
 }

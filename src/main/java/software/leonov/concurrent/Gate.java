@@ -3,57 +3,55 @@ package software.leonov.concurrent;
 import static java.util.Objects.requireNonNull;
 
 import java.time.Duration;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.locks.AbstractQueuedSynchronizer;
 
 /**
- * A boolean synchronization mechanism with semantics similar to {@link CountDownLatch#CountDownLatch(int) new
- * CountDownLatch(1)}, offering more intuitive naming conventions, and additional functionality.
+ * A boolean synchronization aid with semantics similar to {@link BooleanLatch} that allows threads to wait for state
+ * transitions in both directions.
  * <p>
  * A {@code Gate} is either {@link #isOpen() open} or closed. Threads can {@link #await() wait} for a closed gate to
  * open or {@link #guard()} an open gate until it closes.
  * 
- * @implNote This class uses {@code AbstractQueuedSynchronizer} internally which handles the possibly of <i>spurious
- *           wakeups</i>
+ * @implNote This class manages the possibility of <i>spurious wakeups</i> internally.
  * @author Zhenya Leonov
  */
 public final class Gate implements Awaitable {
 
-    private final static int OPEN   = 0;
+    private final static int OPEN = 0;
     private final static int CLOSED = 1;
 
-    private static class Sync extends AbstractQueuedSynchronizer {
+    private static class Synchronizer extends AbstractQueuedSynchronizer {
         private static final long serialVersionUID = -3204469639067561686L;
 
-        Sync(final int state) {
-            setState(state);
+        Synchronizer(final int value) {
+            setState(value);
         }
 
         int state() {
             return getState();
         }
 
-        protected int tryAcquireShared(final int state) {
-            return getState() == state ? 1 : -1;
+        protected int tryAcquireShared(final int value) {
+            return getState() == value ? 1 : -1;
         }
 
-        protected boolean tryReleaseShared(final int state) {
+        protected boolean tryReleaseShared(final int updatedCount) {
             while (true) {
-                int current = getState();
+                int expectedCount = getState();
 
-                if (current == state)
+                if (expectedCount == updatedCount)
                     return false;
 
-                if (compareAndSetState(current, state))
+                if (compareAndSetState(expectedCount, updatedCount))
                     return true;
             }
         }
     }
 
-    private final Sync sync;
+    private final Synchronizer sync;
 
     private Gate(final int state) {
-        this.sync = new Sync(state);
+        this.sync = new Synchronizer(state);
     }
 
     /**
@@ -96,7 +94,7 @@ public final class Gate implements Awaitable {
      * specified waiting time elapses.
      */
     @Override
-    public boolean await(final Duration timeout) throws InterruptedException {
+    public boolean await(final Duration timeout) throws InterruptedException, NullPointerException, ArithmeticException {
         requireNonNull(timeout, "timeout == null");
         return sync.tryAcquireSharedNanos(OPEN, timeout.toNanos());
     }
@@ -133,7 +131,7 @@ public final class Gate implements Awaitable {
      *                              supported)
      * @throws NullPointerException if {@code duration} is {@code null}
      */
-    public boolean guard(final Duration timeout) throws InterruptedException {
+    public boolean guard(final Duration timeout) throws InterruptedException, NullPointerException, ArithmeticException {
         return sync.tryAcquireSharedNanos(CLOSED, timeout.toNanos());
     }
 
@@ -164,7 +162,7 @@ public final class Gate implements Awaitable {
 
     @Override
     public String toString() {
-        return Counter.class.getSimpleName() + " [" + (isOpen() ? "open" : "closed") + "]";
+        return Counter.class.getSimpleName() + " [gate is " + (isOpen() ? "open" : "closed") + "]";
     }
 
 }

@@ -19,15 +19,8 @@ import java.util.concurrent.locks.AbstractQueuedSynchronizer;
  * count.</b> Awaiting threads may <i>fall through</i> the barrier before any worker thread has a chance to modify the
  * count. This <b>can lead to incorrect results if you are using this {@code Counter} to ensure that worker threads
  * complete their operations before releasing the waiting threads.</b>
- * <p>
- * This behavior may seem especially counter intuitive to users of {@link CountDownLatch} which is always initialized
- * with a count higher than zero, thus ensuring that at least one worker thread has a chance to modify the count before
- * a waiting thread is released.
- * <p>
- * A {@code Counter} is a versatile tool for various synchronization scenarios. It can be used as a bi-directional latch
- * allowing threads to wait until a specific count is reached in either direction.
  * 
- * @implNote This class handles the possibly of <i>spurious wakeups</i> internally
+ * @implNote This class manages the possibility of <i>spurious wakeups</i> internally.
  * @author Zhenya Leonov
  */
 public final class Counter implements Awaitable {
@@ -35,15 +28,15 @@ public final class Counter implements Awaitable {
     private static final class Synchronizer extends AbstractQueuedSynchronizer {
         private static final long serialVersionUID = 744247383119520937L;
 
-        private final int        target;
+        private final int target;
         private volatile boolean done;
 
-        private Synchronizer(final int initial, final int target) {
+        Synchronizer(final int initial, final int target) {
             setState(initial);
             this.target = target;
         }
 
-        public int count() {
+        int getCount() {
             return getState();
         }
 
@@ -58,12 +51,12 @@ public final class Counter implements Awaitable {
                 if (done)
                     return false;
 
-                final int count = count();
+                final int expectedCount = getCount();
 
-                final int next = count + value;
+                final int updatedCount = expectedCount + value;
 
-                if (compareAndSetState(count, next))
-                    return done |= next == target;
+                if (compareAndSetState(expectedCount, updatedCount))
+                    return done |= updatedCount == target;
             }
         }
     }
@@ -71,7 +64,7 @@ public final class Counter implements Awaitable {
     private final Synchronizer sync;
 
     /**
-     * Constructs a {@code Counter} with the specified initial and target count. CountDownLatch
+     * Constructs a {@code Counter} with the specified initial and target count.
      *
      * @param initial the initial count
      * @param target  the target count
@@ -111,7 +104,7 @@ public final class Counter implements Awaitable {
      * a waiting thread is released.
      */
     @Override
-    public boolean await(final Duration duration) throws InterruptedException {
+    public boolean await(final Duration duration) throws InterruptedException, NullPointerException, ArithmeticException {
         requireNonNull(duration, "duration == null");
         return sync.tryAcquireSharedNanos(1, duration.toNanos());
     }
@@ -121,7 +114,7 @@ public final class Counter implements Awaitable {
      * the target count then this method returns immediately.
      * <p>
      * If the current thread is {@link Thread#interrupted() interrupted} while waiting, it will continue to wait until
-     * signalled. When this method returns the thread's {@link Thread#isInterrupted() interrupted status} will still be set.
+     * signaled. When this method returns the thread's {@link Thread#isInterrupted() interrupted status} will still be set.
      * <p>
      * <b>Warning: A race condition may occur if this class is initialized with an initial count equal to the target
      * count.</b> A waiting thread may <i>fall through</i> the barrier before any worker thread has a chance to modify the
@@ -158,7 +151,7 @@ public final class Counter implements Awaitable {
      * @return the current count
      */
     public int getCount() {
-        return sync.count();
+        return sync.getCount();
     }
 
     @Override

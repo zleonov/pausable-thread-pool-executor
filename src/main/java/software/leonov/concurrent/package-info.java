@@ -15,6 +15,6 @@
  */
 
 /**
- * Concurrency utilities.
+ * Additional concurrency utilities that extend {@code java.util.concurrent}.
  */
 package software.leonov.concurrent;

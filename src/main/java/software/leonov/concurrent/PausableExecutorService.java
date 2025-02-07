@@ -37,7 +37,7 @@ public interface PausableExecutorService extends ExecutorService {
     /**
      * Waits for the {@code ExecutorService} to terminate after a shutdown request.
      * <p>
-     * <b>Warning:</b> This method will block forever until the {@code ExecutorService} terminates. If active tasks are
+     * <b>Warning:</b> This method will block indefinitely until the {@code ExecutorService} terminates. If active tasks are
      * deadlocked this thread must be interrupted.
      * 
      * @throws InterruptedException if interrupted while waiting
