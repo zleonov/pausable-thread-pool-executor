@@ -39,8 +39,8 @@ import java.util.function.Consumer;
  * caller thread}: {@code RetryPolicy} offers a conceptually <i>cleaner</i> solution by ensuring that all tasks execute
  * <i>within</i> the thread pool. For example if you want all tasks to execute using a
  * {@link ThreadPoolExecutor#setThreadFactory(java.util.concurrent.ThreadFactory) custom thread factory}, or to simplify
- * troubleshooting, avoiding scenarios where the main dispatcher thread suddenly begins executing tasks directly, making
- * it harder to trace the execution flow in debug logs.
+ * troubleshooting by avoiding scenarios where the main dispatcher thread suddenly begins executing tasks directly,
+ * making it harder to trace the execution flow in debug logs.
  * </ul>
  * <p>
  * Instances of this policy are created using a {@link RetryPolicy.Builder builder} obtained from
@@ -55,8 +55,6 @@ import java.util.function.Consumer;
  *              .onDelay(delay -> ...)
  *              .onSuccess(() -> ...)
  *              .create();}</pre>
- * <p>
- * 
  * 
  * @author Zhenya Leonov
  */
@@ -278,11 +276,6 @@ public class RetryPolicy implements RejectedExecutionHandler {
             attempts.remove();
         }
     }
-
-//    private long nextBackOff(final int attempt) {
-//        final long delay = (long) (initialDelayMillis * Math.pow(multiplier, attempt));
-//        return Math.min(delay, maxDelayMillis);
-//    }
 
     private long nextBackOff(final int attempt, final long remainingNanos) {
         final long nanos = (long) (initialDelayMillis * Math.pow(multiplier, attempt));
