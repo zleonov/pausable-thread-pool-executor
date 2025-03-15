@@ -14,22 +14,22 @@ import org.junit.jupiter.api.Test;
 
 class BoundedExecutorServiceTest {
 
-    private static AtomicInteger count;
-    private static int ntasks;
-    private static IntSummaryStatistics stats;
-    private static  BoundedExecutorService exec;
+    private static AtomicInteger          count;
+    private static int                    ntasks;
+    private static IntSummaryStatistics   stats;
+    private static BoundedExecutorService exec;
 
     @BeforeEach
     void beforeEach() {
         ntasks = 5;
-        count = new AtomicInteger();
-        stats = new IntSummaryStatistics();
-        exec = new BoundedExecutorService(Executors.newCachedThreadPool(), ntasks);
+        count  = new AtomicInteger();
+        stats  = new IntSummaryStatistics();
+        exec   = new BoundedExecutorService(Executors.newCachedThreadPool(), ntasks);
     }
 
     @AfterEach
     void afterEach() throws InterruptedException {
-        ExecutorServices.shutdownAndAwaitTermination(exec);
+        Execution.shutdownAndAwaitTermination(exec);
     }
 
     @Test

@@ -30,7 +30,7 @@ class BoundedExecutorTest {
 
     @AfterEach
     void afterEach() throws InterruptedException {
-        ExecutorServices.shutdownAndAwaitTermination((ExecutorService) exec.getDelegate());
+        Execution.shutdownAndAwaitTermination((ExecutorService) exec.getDelegate());
     }
 
     @Test

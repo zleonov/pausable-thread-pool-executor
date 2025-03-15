@@ -4,21 +4,14 @@ import static java.util.Objects.requireNonNull;
 
 import java.time.Duration;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.Semaphore;
 import java.util.concurrent.locks.AbstractQueuedSynchronizer;
 
 /**
- * A synchronization aid similar to a {@link CountDownLatch} or a {@link Semaphore} but allows threads to count up and
- * down and wait until a specified target count is reached.
+ * A synchronization aid similar to a {@link CountDownLatch} that allows threads to count in both directions.
  * <p>
- * A {@code Counter} is {@link #Counter(int, int) initialized} with an initial and a target count. Threads can increment
- * the count using {@link #countUp()} and decrement it using {@link #countDown()}. The {@link #await()} method blocks
- * until the target count is reached.
- * <p>
- * <b>Warning: A race condition may occur if this class is initialized with an initial count equal to the target
- * count.</b> Awaiting threads may <i>fall through</i> the barrier before any worker thread has a chance to modify the
- * count. This <b>can lead to incorrect results if you are using this {@code Counter} to ensure that worker threads
- * complete their operations before releasing the waiting threads.</b>
+ * A {@code Counter} is {@link #Counter(int) initialized} with an initial count. Threads can increment the count using
+ * {@link #countUp()} and decrement it using {@link #countDown()}. The {@link #await()} method blocks until the count
+ * reaches zero.
  * 
  * @implNote This class manages the possibility of <i>spurious wakeups</i> internally.
  * @author Zhenya Leonov
@@ -28,12 +21,8 @@ public final class Counter implements Awaitable {
     private static final class Synchronizer extends AbstractQueuedSynchronizer {
         private static final long serialVersionUID = 744247383119520937L;
 
-        private final int target;
-        private volatile boolean done;
-
-        Synchronizer(final int initial, final int target) {
+        Synchronizer(final int initial) {
             setState(initial);
-            this.target = target;
         }
 
         int getCount() {
@@ -42,21 +31,21 @@ public final class Counter implements Awaitable {
 
         @Override
         protected int tryAcquireShared(final int value) {
-            return done ? 1 : -1;
+            return getState() == 0 ? 1 : -1;
         }
 
         @Override
         protected boolean tryReleaseShared(final int value) {
             while (true) {
-                if (done)
-                    return false;
+                final int expectedCount = getState();
 
-                final int expectedCount = getCount();
+//                if (expectedCount == 0)
+//                    return false;
 
                 final int updatedCount = expectedCount + value;
 
                 if (compareAndSetState(expectedCount, updatedCount))
-                    return done |= updatedCount == target;
+                    return updatedCount == 0;
             }
         }
     }
@@ -64,13 +53,12 @@ public final class Counter implements Awaitable {
     private final Synchronizer sync;
 
     /**
-     * Constructs a {@code Counter} with the specified initial and target count.
+     * Constructs a {@code Counter} with the specified initial count.
      *
-     * @param initial the initial count
-     * @param target  the target count
+     * @param count the initial count
      */
-    public Counter(final int initial, final int target) {
-        this.sync = new Synchronizer(initial, target);
+    public Counter(final int count) {
+        this.sync = new Synchronizer(count);
     }
 
     /**
@@ -133,16 +121,22 @@ public final class Counter implements Awaitable {
 
     /**
      * Increments the count.
+     * 
+     * @return this {@code Counter}
      */
-    public void countUp() {
+    public Counter countUp() {
         sync.releaseShared(1);
+        return this;
     }
 
     /**
      * Decrements the count.
+     * 
+     * @return this {@code Counter}
      */
-    public void countDown() {
+    public Counter countDown() {
         sync.releaseShared(-1);
+        return this;
     }
 
     /**

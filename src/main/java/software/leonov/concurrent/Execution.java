@@ -11,14 +11,13 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Static utility methods for working with {@link ThreadPoolExecutor}s and alternative {@link ExecutorService}
- * implementations.
+ * Static utility methods for working with {@link ThreadPoolExecutor}s and other {@link ExecutorService}s.
  * 
  * @author Zhenya Leonov
  */
-public final class ExecutorServices {
+public final class Execution {
 
-    private ExecutorServices() {
+    private Execution() {
     }
 
     /**
@@ -117,7 +116,7 @@ public final class ExecutorServices {
         else {
             exec.shutdown();
             final BlockingQueue<Runnable> queue = exec.getQueue();
-            final List<Runnable> tasks = new ArrayList<>(queue.size());
+            final List<Runnable>          tasks = new ArrayList<>(queue.size());
             synchronized (exec) { // why are we doing this?
                 drainFully(queue, tasks);
             }

@@ -32,7 +32,7 @@ public interface Awaitable {
      *
      * @param duration the maximum time to wait
      * @return {@code true} if the thread was signaled or {@code false} if the timeout elapsed
-     * @throws ArithmeticException  if duration is too large to fit in a {@code long} nanoseconds value
+     * @throws ArithmeticException  if {@code duration} is too large to fit in a {@code long} nanoseconds value
      * @throws InterruptedException if the current thread is interrupted while waiting
      * @throws NullPointerException if {@code duration} is {@code null}
      */

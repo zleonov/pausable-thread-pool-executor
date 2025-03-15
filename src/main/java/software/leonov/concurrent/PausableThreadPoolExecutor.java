@@ -74,19 +74,20 @@ public final class PausableThreadPoolExecutor extends ThreadPoolExecutor impleme
     private static final BiConsumer<?, ?> DO_NOTHING_BI_CONSUMER = (r, t) -> {
     };
 
-    private final ReentrantLock lock = new ReentrantLock();
-    private final Condition condition = lock.newCondition();
+    private final ReentrantLock lock      = new ReentrantLock();
+    private final Condition     condition = lock.newCondition();
+
     private boolean paused = false;
 
     @SuppressWarnings("unchecked")
-    private Consumer<Runnable> beforeExecute = (Consumer<Runnable>) DO_NOTHING_CONSUMER;
+    private Consumer<Runnable>              beforeExecute   = (Consumer<Runnable>) DO_NOTHING_CONSUMER;
     @SuppressWarnings("unchecked")
-    private BiConsumer<Runnable, Throwable> afterExecute = (BiConsumer<Runnable, Throwable>) DO_NOTHING_BI_CONSUMER;
+    private BiConsumer<Runnable, Throwable> afterExecute    = (BiConsumer<Runnable, Throwable>) DO_NOTHING_BI_CONSUMER;
     @SuppressWarnings("unchecked")
-    private Consumer<Runnable> beforePause = (Consumer<Runnable>) DO_NOTHING_CONSUMER;
+    private Consumer<Runnable>              beforePause     = (Consumer<Runnable>) DO_NOTHING_CONSUMER;
     @SuppressWarnings("unchecked")
-    private Consumer<Runnable> afterPause = (Consumer<Runnable>) DO_NOTHING_CONSUMER;
-    private Runnable afterTerminated = DO_NOTHING_RUNNABLE;
+    private Consumer<Runnable>              afterPause      = (Consumer<Runnable>) DO_NOTHING_CONSUMER;
+    private Runnable                        afterTerminated = DO_NOTHING_RUNNABLE;
 
     private PausableThreadPoolExecutor(final int corePoolSize, final int maxPoolSize, final Duration keepAliveTime, final BlockingQueue<Runnable> queue, final ThreadFactory factory, final RejectedExecutionHandler handler) {
         super(corePoolSize, maxPoolSize, keepAliveTime.toMillis(), TimeUnit.MILLISECONDS, queue, factory, handler);
@@ -97,7 +98,7 @@ public final class PausableThreadPoolExecutor extends ThreadPoolExecutor impleme
         super.beforeExecute(t, r);
 
         final Consumer<Runnable> beforeExecute = this.beforeExecute;
-        final Consumer<Runnable> afterPause = this.afterPause;
+        final Consumer<Runnable> afterPause    = this.afterPause;
 
         lock.lock();
         try {
@@ -108,6 +109,7 @@ public final class PausableThreadPoolExecutor extends ThreadPoolExecutor impleme
                 afterPause.accept(r);
             }
         } catch (final InterruptedException e) {
+            afterPause.accept(r);
             t.interrupt();
         } finally {
             lock.unlock();
@@ -118,16 +120,15 @@ public final class PausableThreadPoolExecutor extends ThreadPoolExecutor impleme
     @Override
     protected void afterExecute(final Runnable r, final Throwable t) {
         super.afterExecute(r, t);
-
         final BiConsumer<Runnable, Throwable> afterExecute = this.afterExecute;
 
-        lock.lock();
-        try {
-            if (isShutdown() && getQueue().isEmpty())
-                paused = false;
-        } finally {
-            lock.unlock();
-        }
+//        lock.lock();
+//        try {
+//            if (isShutdown() && getQueue().isEmpty())
+//                paused = false;
+//        } finally {
+//            lock.unlock();
+//        }
         afterExecute.accept(r, t);
     }
 
@@ -135,7 +136,7 @@ public final class PausableThreadPoolExecutor extends ThreadPoolExecutor impleme
     public boolean isPaused() {
         lock.lock();
         try {
-            return paused;
+            return isTerminated() ? false : paused;
         } finally {
             lock.unlock();
         }
@@ -145,7 +146,22 @@ public final class PausableThreadPoolExecutor extends ThreadPoolExecutor impleme
     public boolean pause() {
         lock.lock();
         try {
-            paused = !isShutdown();
+            if (!paused)
+                // paused = !isShutdown() || getQueue().size() > 1;
+
+                /*
+                 * We should double check if there is a way to easily get around a benign race condition here: since we don't have
+                 * access to ThreadPoolExecutor's mainLock there is a theoretical chance that the last task was handed off to a thread
+                 * at just the right time such that the queue is empty, but the thread did NOT yet try to lock and check the pause
+                 * status in beforeExecute. So this method will return false, when there is a chance that a thread executing the last
+                 * task may be checking the pause state after this method returns.
+                 * 
+                 * The race condition is benign since no guarantees are made with regards to attempting to pause "pending tasks". If we
+                 * define pending tasks as being strictly on the workqueue then we eliminate the race condition by defintion. But if we
+                 * define pending tasks as any task on the queue or already assigned to a thread that has yet to begin executing it then
+                 * we can say we have a race condition.
+                 */
+                paused = !isShutdown() || !getQueue().isEmpty() || lock.hasQueuedThreads();
             return paused;
         } finally {
             lock.unlock();
@@ -156,7 +172,7 @@ public final class PausableThreadPoolExecutor extends ThreadPoolExecutor impleme
     public void resume() {
         lock.lock();
         try {
-            if (isPaused()) {
+            if (paused) {
                 paused = false;
                 condition.signalAll();
             }
@@ -550,13 +566,13 @@ public final class PausableThreadPoolExecutor extends ThreadPoolExecutor impleme
     public static final class ThreadPoolBuilder extends AbstractThreadPoolBuilder {
 
         private final BlockingQueue<Runnable> queue;
-        private final Duration keepAliveTime;
-        private boolean allowCoreThreadTimeOut = false;
+        private final Duration                keepAliveTime;
+        private boolean                       allowCoreThreadTimeOut = false;
 
         ThreadPoolBuilder(final int corePoolSize, final int maximumPoolSize, final Duration keepAliveTime, final BlockingQueue<Runnable> queue) {
             super(corePoolSize, maximumPoolSize);
             this.keepAliveTime = keepAliveTime;
-            this.queue = queue;
+            this.queue         = queue;
         }
 
         @Override
@@ -600,6 +616,12 @@ public final class PausableThreadPoolExecutor extends ThreadPoolExecutor impleme
      * A builder which creates {@code PausableThreadPoolExecutor}s that generate new threads as needed, but will reuse
      * previously constructed threads when they are available.
      * <p>
+     * A {@link SynchronousQueue} will be used as the work queue, with idle threads expiring in 60 seconds. Unless otherwise
+     * specified the {@link Executors#defaultThreadFactory() default thread factory} and
+     * {@link java.util.concurrent.ThreadPoolExecutor.AbortPolicy AbortPolicy} will be used as the
+     * {@link ThreadPoolExecutor#getThreadFactory() thread factory} and the
+     * {@link ThreadPoolExecutor#getRejectedExecutionHandler() rejected execution handler}, respectively.
+     * <p>
      * <b>Warning: It is <u>strongly discouraged</u> to create a cached thread pool with the intention of using the
      * {@link PausableThreadPoolExecutor#pause() pause}/{@link PausableThreadPoolExecutor#resume() resume} functionality,
      * unless you have strict control over the maximum concurrency level of the thread pool.</b> A thread in the pool only
@@ -610,12 +632,6 @@ public final class PausableThreadPoolExecutor extends ThreadPoolExecutor impleme
      * <p>
      * <b>It is only recommended to use a cached thread pool with a {@link BoundedExecutor} or
      * {@link BoundedExecutorService}.</b>
-     * <p>
-     * A {@link SynchronousQueue} implementation will be used as the work queue, with idle threads expiring in 60 seconds.
-     * Unless otherwise specified the {@link Executors#defaultThreadFactory() default thread factory} and
-     * {@link java.util.concurrent.ThreadPoolExecutor.AbortPolicy AbortPolicy} will be used as the
-     * {@link ThreadPoolExecutor#getThreadFactory() thread factory} and the
-     * {@link ThreadPoolExecutor#getRejectedExecutionHandler() rejected execution handler}, respectively.
      */
     public static final class CachedThreadPoolBuilder extends AbstractThreadPoolBuilder {
 
@@ -642,21 +658,36 @@ public final class PausableThreadPoolExecutor extends ThreadPoolExecutor impleme
     /**
      * A builder which creates {@code PausableThreadPoolExecutor}s that use a fixed number of threads.
      * <p>
-     * A {@link LinkedBlockingQueue} implementation will be used as the work queue, with threads never expiring. Unless
-     * otherwise specified the {@link Executors#defaultThreadFactory() default thread factory} and
+     * Threads never expire and unless otherwise specified a {@link LinkedBlockingQueue},
+     * {@link Executors#defaultThreadFactory() default thread factory}, and
      * {@link java.util.concurrent.ThreadPoolExecutor.AbortPolicy AbortPolicy} will be used as the
-     * {@link ThreadPoolExecutor#getThreadFactory() thread factory} and the
-     * {@link ThreadPoolExecutor#getRejectedExecutionHandler() rejected execution handler}, respectively.
+     * {@link ThreadPoolExecutor#getQueue() work queue}, {@link ThreadPoolExecutor#getThreadFactory() thread factory}, and
+     * the {@link ThreadPoolExecutor#getRejectedExecutionHandler() rejected execution handler}, respectively.
      */
     public static class FixedThreadPoolBuilder extends AbstractThreadPoolBuilder {
+
+        private BlockingQueue<Runnable> queue = null;
 
         FixedThreadPoolBuilder(final int nthreads) {
             super(nthreads);
         }
 
+        /**
+         * Sets the queue to use for holding tasks before they are executed.
+         * 
+         * @param queue the queue to use for holding tasks before they are executed
+         * @return {@code this} builder instance
+         */
+        public FixedThreadPoolBuilder setQueue(final BlockingQueue<Runnable> queue) {
+            requireNonNull(queue, "queue == null");
+            this.queue = queue;
+            return this;
+        }
+
         @Override
         public PausableThreadPoolExecutor create() {
-            return new PausableThreadPoolExecutor(corePoolSize, maximumPoolSize, Duration.ZERO, new LinkedBlockingQueue<>(), factory != null ? factory : defaultThreadFactory(), handler != null ? handler : new AbortPolicy());
+            return new PausableThreadPoolExecutor(corePoolSize, maximumPoolSize, Duration.ZERO, queue != null ? queue : new LinkedBlockingQueue<>(), factory != null ? factory : defaultThreadFactory(),
+                    handler != null ? handler : new AbortPolicy());
         }
 
         @Override
@@ -679,7 +710,7 @@ public final class PausableThreadPoolExecutor extends ThreadPoolExecutor impleme
         protected final int corePoolSize;
         protected final int maximumPoolSize;
 
-        protected ThreadFactory factory = null;
+        protected ThreadFactory            factory = null;
         protected RejectedExecutionHandler handler = null;
 
         /**
@@ -690,12 +721,12 @@ public final class PausableThreadPoolExecutor extends ThreadPoolExecutor impleme
         public abstract PausableThreadPoolExecutor create();
 
         AbstractThreadPoolBuilder(final int corePoolSize) {
-            this.corePoolSize = corePoolSize;
+            this.corePoolSize    = corePoolSize;
             this.maximumPoolSize = corePoolSize;
         }
 
         AbstractThreadPoolBuilder(final int corePoolSize, final int maximumPoolSize) {
-            this.corePoolSize = corePoolSize;
+            this.corePoolSize    = corePoolSize;
             this.maximumPoolSize = maximumPoolSize;
         }
 

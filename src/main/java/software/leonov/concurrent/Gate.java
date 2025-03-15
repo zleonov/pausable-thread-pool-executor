@@ -94,9 +94,9 @@ public final class Gate implements Awaitable {
      * specified waiting time elapses.
      */
     @Override
-    public boolean await(final Duration timeout) throws InterruptedException, NullPointerException, ArithmeticException {
-        requireNonNull(timeout, "timeout == null");
-        return sync.tryAcquireSharedNanos(OPEN, timeout.toNanos());
+    public boolean await(final Duration duration) throws InterruptedException, NullPointerException, ArithmeticException {
+        requireNonNull(duration, "duration == null");
+        return sync.tryAcquireSharedNanos(OPEN, duration.toNanos());
     }
 
     /**
@@ -108,7 +108,7 @@ public final class Gate implements Awaitable {
      */
     @Override
     public void awaitUninterruptibly() {
-        sync.tryAcquireShared(OPEN);
+        sync.acquireShared(OPEN);
     }
 
     /**
@@ -131,8 +131,8 @@ public final class Gate implements Awaitable {
      *                              supported)
      * @throws NullPointerException if {@code duration} is {@code null}
      */
-    public boolean guard(final Duration timeout) throws InterruptedException, NullPointerException, ArithmeticException {
-        return sync.tryAcquireSharedNanos(CLOSED, timeout.toNanos());
+    public boolean guard(final Duration duration) throws InterruptedException, NullPointerException, ArithmeticException {
+        return sync.tryAcquireSharedNanos(CLOSED, duration.toNanos());
     }
 
     /**
@@ -143,7 +143,7 @@ public final class Gate implements Awaitable {
      * set.
      */
     public void guardUninterruptibly() {
-        sync.tryAcquireShared(CLOSED);
+        sync.acquireShared(CLOSED);
     }
 
     /**

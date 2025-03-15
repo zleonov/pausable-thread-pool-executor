@@ -45,6 +45,9 @@ public final class BooleanLatch implements Awaitable {
 
     private final Synchronizer sync;
 
+    /**
+     * Creates a new {@code BooleanLatch} initialized in the false <i>unsignaled</i> state.
+     */
     public BooleanLatch() {
         this.sync = new Synchronizer();
     }
@@ -93,12 +96,12 @@ public final class BooleanLatch implements Awaitable {
      * Causes the current thread to wait indefinitely until the latch is {@link #signal() signaled}. If the latch is already
      * signaled this method returns immediately.
      * <p>
-     * If the current thread is {@link Thread#interrupted() interrupted} while waiting the thread's
-     * {@link Thread#isInterrupted() interrupted status} will still be set to {@code true} when this method returns.
+     * If the current thread is {@link Thread#interrupted() interrupted} while waiting its {@link Thread#isInterrupted()
+     * interrupted status} will still be set to {@code true} when this method returns.
      */
     @Override
     public void awaitUninterruptibly() {
-        sync.tryAcquireShared(1);
+        sync.acquireShared(1);
     }
 
 }
