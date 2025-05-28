@@ -3,6 +3,8 @@ package software.leonov.concurrent;
 import static java.util.Objects.requireNonNull;
 import static software.leonov.concurrent.PausableThreadPoolExecutor.drainFully;
 
+import java.time.Duration;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
@@ -24,8 +26,8 @@ public final class Execution {
      * Blocks until all tasks have completed execution after a {@link ExecutorService#shutdown() shutdown} or
      * {@link ExecutorService#shutdownNow() shutdownNow} request, <b>or the current thread is interrupted</b>.
      * <p>
-     * Use this method only if you are sure that all tasks in the specified executor will eventually succeed in a reasonable
-     * amount of time.
+     * Use this method only if you can guarantee that all tasks in the specified executor will eventually succeed in a
+     * reasonable amount of time.
      * 
      * @param exec the specified {@code ExecutorService}
      * @throws InterruptedException if interrupted while waiting
@@ -39,8 +41,8 @@ public final class Execution {
      * Attempts to {@link ExecutorService#shutdown() shutdown} the specified {@code ExecutorService} and blocks until all
      * tasks have completed execution, <b>or the current thread is interrupted</b>.
      * <p>
-     * Use this method only if you are sure that all tasks in the specified executor will eventually succeed in a reasonable
-     * amount of time.
+     * Use this method only if you can guarantee that all tasks in the specified executor will eventually succeed in a
+     * reasonable amount of time.
      * 
      * @param exec the specified {@code ExecutorService}
      * @throws InterruptedException if interrupted while waiting
@@ -55,8 +57,8 @@ public final class Execution {
      * Attempts to {@link ExecutorService#shutdownNow() shutdownNow} the specified {@code ExecutorService} and blocks until
      * all tasks have completed execution, <b>or the current thread is interrupted</b>.
      * <p>
-     * Use this method only if you are sure that all tasks in the specified executor will eventually succeed in a reasonable
-     * amount of time.
+     * Use this method only if you can guarantee that all tasks in the specified executor will eventually succeed in a
+     * reasonable amount of time.
      * 
      * @param exec the specified {@code ExecutorService}
      * @return the list of tasks that never commenced execution
@@ -73,8 +75,8 @@ public final class Execution {
      * Attempts to {@link #shutdownFast(ThreadPoolExecutor) shutdownFast} the specified {@code ExecutorService} and blocks
      * until all tasks have completed execution, <b>or the current thread is interrupted</b>.
      * <p>
-     * Use this method only if you are sure that all tasks in the specified executor will eventually succeed in a reasonable
-     * amount of time.
+     * Use this method only if you can guarantee that all tasks in the specified executor will eventually succeed in a
+     * reasonable amount of time.
      * 
      * @param exec the specified {@code ThreadPoolExecutor}
      * @return the list of tasks that never commenced execution
@@ -89,7 +91,7 @@ public final class Execution {
 
     /**
      * Halts the processing of pending tasks but does not attempt to stop actively executing tasks. All pending tasks are
-     * drained (removed) from the work queue and returned when this method completes.
+     * drained (removed) from the task queue and returned when this method completes.
      * <p>
      * This method does not wait for actively executing tasks to terminate. Use {@link #awaitTermination(ExecutorService)}
      * or {@link ThreadPoolExecutor#awaitTermination(long, TimeUnit)} to do that.
@@ -99,7 +101,7 @@ public final class Execution {
      * <ul>
      * <li>{@link ExecutorService#shutdown() shutdown()}: all actively executing tasks and pending tasks are allowed to
      * continue, but no new tasks will be accepted</li>
-     * <li><b>shutdownFast()</b>: all actively executing tasks are allowed to continue, <b>pending tasks are removed</b>,
+     * <li><b>shutdownFast():</b> all actively executing tasks are allowed to continue, <b>pending tasks are removed</b>,
      * and no new tasks will be accepted</li>
      * <li>{@link ExecutorService#shutdownNow() shutdownNow()}: all actively executing tasks are <u>interrupted</u>, pending
      * tasks are removed, and no new tasks will be accepted</li>
@@ -122,6 +124,40 @@ public final class Execution {
             }
             return tasks;
         }
+    }
+
+    /**
+     * Add a shutdown hook to block until all tasks in the specified {@code ExecutorService} have completed execution.
+     * <p>
+     * Use this method only if you can guarantee that all tasks in the specified executor will eventually succeed in a
+     * reasonable amount of time.
+     *
+     * @param exec the specified {@code ExecutorService}
+     */
+    public static void shutdownAndAwaitTerminationOnSystemExit(final ExecutorService exec) {
+        shutdownAndAwaitTerminationOnSystemExit(exec, Duration.of(Long.MAX_VALUE, ChronoUnit.NANOS));
+
+    }
+
+    /**
+     * Add a shutdown hook to wait until all tasks in the specified {@code ExecutorService} have completed execution.
+     *
+     * @param exec    the specified {@code ExecutorService}
+     * @param timeout the maximum time to wait
+     * @throws ArithmeticException if {@code duration} is too large to fit in a {@code long} nanoseconds value
+     */
+    public static void shutdownAndAwaitTerminationOnSystemExit(final ExecutorService exec, final Duration timeout) {
+        requireNonNull(exec, "exec == null");
+        requireNonNull(timeout, "timeout == null");
+        final Thread t = new Thread(() -> {
+            try {
+                exec.awaitTermination(timeout.toNanos(), TimeUnit.NANOSECONDS);
+            } catch (final InterruptedException e) {
+            }
+        });
+        t.setName("ShutdownHook-for-" + exec.getClass().getSimpleName());
+
+        Runtime.getRuntime().addShutdownHook(t);
     }
 
 }

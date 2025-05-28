@@ -2,51 +2,54 @@ package software.leonov.concurrent;
 
 import static java.util.Objects.requireNonNull;
 
-import java.lang.Thread.UncaughtExceptionHandler;
 import java.time.Duration;
 import java.util.Collections;
+import java.util.List;
 import java.util.Set;
+import java.util.concurrent.AbstractExecutorService;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Executor;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.RejectedExecutionHandler;
 import java.util.concurrent.ThreadFactory;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
 /**
- * A lightweight {@code Executor} that generates a new {@code Thread} for each {@link #execute(Runnable) task}.
+ * A lightweight {@code ExecutorService} that generates a new {@code Thread} for each {@link #execute(Runnable) task}.
  * <p>
- * The number of threads that can be generated is unlimited. There is no work queue or {@link RejectedExecutionHandler
- * saturation policies} of any kind. Tasks are executed immediately. There is no error handling beyond that which the
- * tasks themselves can handle. All uncaught errors will be handled by the thread's {@link UncaughtExceptionHandler}.
+ * The number of threads that can be generated is unlimited. There is no {@link ThreadPoolExecutor#getQueue() work
+ * queue} or {@link RejectedExecutionHandler saturation policies} of any kind. Tasks are executed immediately.
  * <p>
- * While this class does not implement the {@link ExecutorService} interface, it does provide {@link #shutdown()},
- * {@link #shutdown(boolean)}, {@link #awaitTermination(Duration)}, and {@link #awaitTermination()} methods, along with
- * their {@link #isShutdown()} and {@link #isTerminated()} counterparts.
+ * <b>Discussion:</b> {@code ThreadPerTaskExecutor} is useful when migrating legacy (pre Java 5) or custom
+ * multi-threaded code to {@code java.util.concurrent}. It allows users to avoid common hazards and pitfalls (such as
+ * improper use of thread-local variables) that can occur with {@code Executor}s which reuse threads, e.g.
+ * {@link Executors#newCachedThreadPool() cached} or {@link Executors#newFixedThreadPool(int) fixed} variants of
+ * {@code ThreadPoolExecutor}.
+ * <p>
+ * <b>Performance:</b> While thread creation is relatively expensive, typical performance should be commensurate to a
+ * {@code ThreadPoolExecutor} when executing medium to long running tasks.
+ * <p>
  * 
  * @author Zhenya Leonov
  */
-public final class ThreadPerTaskExecutor implements Executor {
-
-//    private final Set<Thread>   threads = new HashSet<>();
-    private final Set<Thread>      threads = Collections.newSetFromMap(new ConcurrentHashMap<>());
-    private volatile ThreadFactory factory;
-
-    private final AtomicInteger activeCount = new AtomicInteger();
-
-    private final Lock      lock       = new ReentrantLock();
-    private final Condition terminated = lock.newCondition();
+public final class ThreadPerTaskExecutor extends AbstractExecutorService {
 
     private static enum State {
         RUNNING, SHUTDOWN, TERMINATED
     }
 
-    private volatile State state;
+    private final Set<Thread> activeThreads = Collections.newSetFromMap(new ConcurrentHashMap<>());
+    private final Lock        lock          = new ReentrantLock();
+    private final Condition   terminated    = lock.newCondition();
+
+    private volatile ThreadFactory factory;
+    private volatile State         state;
+    private volatile AtomicLong    completedTasks = new AtomicLong(0);
 
     /**
      * Creates a new {@link ThreadPerTaskExecutor} which will use the {@link Executors#defaultThreadFactory() default thread
@@ -71,54 +74,50 @@ public final class ThreadPerTaskExecutor implements Executor {
     /**
      * Executes the given command in a new thread.
      * <p>
-     * The number of threads that can be generated is unlimited. There is no work queue or {@link RejectedExecutionHandler
-     * saturation policies} of any kind. Tasks are executed immediately. There is no error handling beyond that which the
-     * tasks themselves can handle. All uncaught errors will be handled by the thread's
-     * {@link Thread.UncaughtExceptionHandler UncaughtExceptionHandler}.
+     * The number of threads that can be generated is unlimited. There is no task queue or {@link RejectedExecutionHandler
+     * saturation policies} of any kind. Tasks are executed immediately.
      * 
-     * @throws RejectedExecutionException if an only if this {@code Executor} has been {@link #shutdown(boolean) shutdown}
+     * @throws RejectedExecutionException if and only if this {@code ExecutorService} has been {@link #shutdown(boolean)
+     *                                    shutdown}
      */
     @Override
     public void execute(final Runnable command) {
         requireNonNull(command, "command == null");
 
-        if (state != State.RUNNING) // best effort to avoid creating unneeded threads
+        if (isShutdown()) // Best effort attempt to avoid creating unnecessary threads after a shutdown request.
             throw new RejectedExecutionException();
 
         final ThreadFactory factory = this.factory;
 
         final Thread thread = factory.newThread(() -> {
             try {
-                activeCount.incrementAndGet();
                 command.run();
             } finally {
-                activeCount.decrementAndGet();
+                activeThreads.remove(Thread.currentThread());
+                completedTasks.incrementAndGet();
 
-                threads.remove(Thread.currentThread());
-
-                if (state != State.RUNNING) {
-                    lock.lock();
-                    try {
-                        if (state != State.TERMINATED)
-                            tryTerminate();
-                    } finally {
-                        lock.unlock();
-                    }
-                }
-
+                if (isShutdown()) // Since variable assignment is atomic we don't need to be in a lock block
+                    lock(() -> {
+                        /*
+                         * In case we are one of the last threads after shutdown
+                         */
+                        tryTerminate();
+                    });
             }
         });
 
-        lock.lock();
-        try {
-            if (state != State.RUNNING)
+        lock(() -> {
+            if (isShutdown())
                 throw new RejectedExecutionException();
-            threads.add(thread); // we are guaranteed at this point that the executor is not shutdown
-        } finally {
-            lock.unlock();
-        }
+            activeThreads.add(thread); // We are guaranteed at this point that the executor is not shutdown
+        });
 
-        thread.start(); // since the thread has been added to the set this does not need to be in the lock block
+        /*
+         * since we define an "active" thread as any thread that has been added to activeThreads, we are free to invoke start()
+         * from outside the lock block.
+         */
+        thread.start();
+
     }
 
     /**
@@ -143,94 +142,99 @@ public final class ThreadPerTaskExecutor implements Executor {
     }
 
     /**
-     * Returns the number of currently executing tasks.
+     * Returns the approximate number of threads which are currently executing tasks.
      * 
-     * @return the number of currently executing tasks
+     * @return the approximate number of threads which are currently executing tasks
      */
     public int getActiveCount() {
-        return activeCount.get();
+        return activeThreads.size();
+    }
+
+    public long getCompletedTaskCount() {
+        return completedTasks.get();
     }
 
     /**
-     * Initiates a shutdown of this {@code Executor} after which no new tasks will be accepted.
+     * Initiates a shutdown of this {@code ExecutorService} after which no new tasks will be accepted.
      * <p>
      * Calling this method more than once is a no-op.
-     * <p>
-     * Active threads are not interrupted. This method delegates to {@link #shutdown(boolean) shutdown(false)}.
-     * 
-     * @return this {@link ThreadPerTaskExecutor} instance
      */
-    public ThreadPerTaskExecutor shutdown() {
-        return shutdown(false);
+    public void shutdown() {
+        shutdown(false);
     }
 
     /**
-     * Initiates a shutdown of this {@code Executor} after which no new tasks will be accepted.
+     * {@inheritDoc}
      * <p>
-     * Calling this method more than once is a no-op.
-     *
-     * @param interrupt whether or not to {@link Thread#interrupt() interrupt} all active threads
-     * @return this {@link ThreadPerTaskExecutor} instance
+     * This method always returns an empty list since tasks are executed immediately and are never pending.
      */
-    public ThreadPerTaskExecutor shutdown(final boolean interrupt) {
-        lock.lock();
-        try {
+    @Override
+    public List<Runnable> shutdownNow() {
+        shutdown(true);
+        return Collections.emptyList();
+    }
+
+    private void shutdown(final boolean interrupt) {
+        lock(() -> {
             if (state == State.RUNNING) {
                 state = State.SHUTDOWN;
 
                 if (interrupt)
-                    threads.forEach(Thread::interrupt);
+                    activeThreads.forEach(Thread::interrupt);
 
+                /*
+                 * if no threads are active we terminate immediately on the shutdown request. Otherwise one of the last active threads
+                 * will terminate.
+                 */
                 tryTerminate();
             }
-        } finally {
-            lock.unlock();
-        }
-        return this;
-    }
-
-    private void tryTerminate() {
-        if (threads.isEmpty()) {
-            state = State.TERMINATED;
-            terminated.signalAll();
-        }
+        });
     }
 
     /**
-     * Returns whether or not this {@code Executor} has been {@link #shutdown(boolean) shutdown}.
+     * Returns whether or not this {@code ExecutorService} has been {@link #shutdown(boolean) shutdown}.
      * 
-     * @return {@code true} if this {@code Executor} has been {@link #shutdown(boolean) shutdown}
+     * @return {@code true} if this {@code ExecutorService} has been {@link #shutdown(boolean) shutdown}
      */
     public boolean isShutdown() {
         return state != State.RUNNING;
     }
 
     /**
-     * Returns whether or not this {@code Executor} has terminated.
+     * Returns whether or not this {@code ExecutorService} has terminated.
      * 
-     * @return whether or not this {@code Executor} has terminated
+     * @return whether or not this {@code ExecutorService} has terminated
      */
     public boolean isTerminated() {
         return state == State.TERMINATED;
     }
 
     /**
-     * Blocks until all tasks have completed execution after a {@link #shutdown(boolean) shutdown} request, the
-     * {@code timeout} occurs, or the current thread is interrupted, whichever happens first.
+     * Blocks until all tasks have completed execution after a shutdown request, or the timeout occurs, or the current
+     * thread is interrupted, whichever happens first.
+     * <p>
+     * This method is a simple overload of {@link #awaitTermination(long, TimeUnit)} allowing users to specify the timeout
+     * more conveniently using a {@link Duration} argument.
      * 
      * @param timeout the maximum time to wait
-     * @return {@code true} if this {@code Executor} has {@link #isTerminated() terminated} or {@code false} if the timeout
-     *         expired
+     * @return {@code true} if this executor has {@link #isTerminated() terminated} or {@code false} if the timeout expired
      * @throws ArithmeticException  if {@code duration} is too large to fit in a {@code long} nanoseconds value
      * @throws InterruptedException if the current thread is interrupted while waiting
      */
     public boolean awaitTermination(final Duration timeout) throws InterruptedException {
         requireNonNull(timeout, "timeout == null");
-        long nanos = timeout.toNanos();
+        return awaitTermination(timeout.toNanos(), TimeUnit.NANOSECONDS);
+    }
+
+    @Override
+    public boolean awaitTermination(final long timeout, final TimeUnit unit) throws InterruptedException {
+        requireNonNull(unit, "unit == null");
+
+        long nanos = unit.toNanos(timeout);
 
         lock.lock();
         try {
-            while (state != State.TERMINATED) {
+            while (!isTerminated()) {
                 if (nanos <= 0)
                     return false;
                 nanos = terminated.awaitNanos(nanos); // we are in a loop so we are not worried about spurious wakeups
@@ -257,14 +261,32 @@ public final class ThreadPerTaskExecutor implements Executor {
     }
 
     /**
-     * Returns a string representing the approximate state if this {@code Executor}.
+     * Returns a string representing the approximate state if this {@code ExecutorService}.
      *
-     * @return a string representing the approximate state if this {@code Executor}
+     * @return a string representing the approximate state if this {@code ExecutorService}
      */
     @Override
     public String toString() {
         // we don't need to lock since this string representation is approximate and no possible guarantees are given or implied
-        return this.getClass().getSimpleName() + " [state = " + state + ", activeCount = " + activeCount.get() + "]";
+        return this.getClass().getSimpleName() + " [state = " + state + ", active threads = " + activeThreads.size() + "]";
+    }
+
+    private void tryTerminate() {
+        // this method should always be called in a lock block
+        if (!isTerminated() && activeThreads.isEmpty()) {
+            state = State.TERMINATED;
+            terminated.signalAll();
+        }
+    }
+
+    // for purposes of cute code
+    private void lock(final Runnable r) {
+        lock.lock();
+        try {
+            r.run();
+        } finally {
+            lock.unlock();
+        }
     }
 
 }

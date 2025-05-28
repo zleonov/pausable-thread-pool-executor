@@ -35,7 +35,6 @@ import java.util.concurrent.atomic.AtomicLong;
  * indefinetly, unless another {@code Future} becomes available.
  * 
  * @param <V> The type of results returned by the tasks
- * 
  * @author Zhenya Leonov
  */
 public final class CountingCompletionService<V> extends ExecutorCompletionService<V> {

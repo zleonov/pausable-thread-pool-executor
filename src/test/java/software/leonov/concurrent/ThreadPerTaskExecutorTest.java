@@ -6,8 +6,10 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.time.Duration;
+import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.junit.jupiter.api.AfterEach;
@@ -27,7 +29,7 @@ class ThreadPerTaskExecutorTest {
 
     @AfterEach
     void tearDown() throws InterruptedException {
-        executor.shutdown(true);
+        executor.shutdownNow();
         executor.awaitTermination();
     }
 
@@ -36,7 +38,7 @@ class ThreadPerTaskExecutorTest {
         final AtomicBoolean ran = new AtomicBoolean(false);
         executor.execute(() -> ran.set(true));
 
-        executor.shutdown(false);
+        executor.shutdown();
         executor.awaitTermination();
 
         assertTrue(ran.get());
@@ -44,7 +46,7 @@ class ThreadPerTaskExecutorTest {
 
     @Test
     void test_execute_rejectedExecution_after_shutdown() {
-        executor.shutdown(false);
+        executor.shutdown();
         assertThrows(RejectedExecutionException.class, () -> executor.execute(() -> {
         }));
     }
@@ -56,7 +58,7 @@ class ThreadPerTaskExecutorTest {
 
     @Test
     void test_shutdown_no_tasks_no_interrupt() throws InterruptedException {
-        executor.shutdown(false);
+        executor.shutdown();
         assertTrue(executor.isShutdown());
         assertTrue(executor.isTerminated());
     }
@@ -74,7 +76,7 @@ class ThreadPerTaskExecutorTest {
             }
         });
 
-        executor.shutdown(true);
+        executor.shutdownNow();
         executor.awaitTermination();
 
         assertTrue(interrupted.get());
@@ -91,7 +93,7 @@ class ThreadPerTaskExecutorTest {
                 interrupted.set(true);
         });
 
-        executor.shutdown(true);
+        executor.shutdownNow();
         latch.signal();
         executor.awaitTermination();
 
@@ -111,7 +113,7 @@ class ThreadPerTaskExecutorTest {
     @Test
     void test_awaitTermination_with_timeout_terminated() throws InterruptedException {
         ThreadPerTaskExecutor executor = new ThreadPerTaskExecutor();
-        executor.shutdown(false);
+        executor.shutdown();
         assertTrue(executor.awaitTermination(Duration.ofMillis(100)));
     }
 
@@ -125,13 +127,13 @@ class ThreadPerTaskExecutorTest {
                 Thread.currentThread().interrupt();
             }
         });
-        executor.shutdown(false);
+        executor.shutdown();
         assertFalse(executor.awaitTermination(Duration.ofMillis(100)));
     }
 
     @Test
     void test_awaitTermination_no_tasks_terminated() throws InterruptedException {
-        executor.shutdown(false);
+        executor.shutdown();
         executor.awaitTermination();
         assertTrue(executor.isTerminated());
     }
@@ -145,7 +147,7 @@ class ThreadPerTaskExecutorTest {
             latch.awaitUninterruptibly();
         });
 
-        executor.shutdown(false);
+        executor.shutdown();
 
         final Thread t = new Thread(() -> {
             try {
@@ -180,9 +182,11 @@ class ThreadPerTaskExecutorTest {
 
         counter.awaitUninterruptibly();
 
-        assertEquals("ThreadPerTaskExecutor [state = RUNNING, activeCount = " + n + "]", executor.toString());
+        final String actual = executor.toString();
 
         latch.signal();
+        
+        assertEquals(ThreadPerTaskExecutor.class.getSimpleName() + " [state = RUNNING, active threads = " + n + "]", actual);
     }
 
     @RepeatedTest(10)
@@ -200,13 +204,13 @@ class ThreadPerTaskExecutorTest {
 
         counter.awaitUninterruptibly();
 
-        executor.shutdown(false);
+        executor.shutdown();
 
         final String actual = executor.toString();
 
         latch.signal();
 
-        assertEquals("ThreadPerTaskExecutor [state = SHUTDOWN, activeCount = " + ntasks + "]", actual);
+        assertEquals(ThreadPerTaskExecutor.class.getSimpleName() + " [state = SHUTDOWN, active threads = " + ntasks + "]", actual);
     }
 
     @RepeatedTest(10)
@@ -232,7 +236,7 @@ class ThreadPerTaskExecutorTest {
     @Test
     void testToString_shuttingDown() {
         ThreadPerTaskExecutor executor = new ThreadPerTaskExecutor();
-        executor.shutdown(false);
+        executor.shutdown();
         String result = executor.toString();
         assertTrue(result.contains("TERMINATED"));
     }
@@ -240,7 +244,7 @@ class ThreadPerTaskExecutorTest {
     @Test
     void testToString_terminated() throws InterruptedException {
         ThreadPerTaskExecutor executor = new ThreadPerTaskExecutor();
-        executor.shutdown(false);
+        executor.shutdown();
         executor.awaitTermination();
         String result = executor.toString();
         assertTrue(result.contains("TERMINATED"));
@@ -271,5 +275,16 @@ class ThreadPerTaskExecutorTest {
         executor.shutdown();
         assertTrue(executor.isShutdown());
         assertTrue(executor.isTerminated());
+    }
+    
+    @Test
+    public void test_completed_count() throws InterruptedException {
+        ThreadPoolExecutor exec = (ThreadPoolExecutor) Executors.newCachedThreadPool();
+        exec.execute(()->{
+            throw new RuntimeException("Test");
+        });
+        
+        Execution.shutdownAndAwaitTermination(exec);
+        System.out.println(exec.getCompletedTaskCount());
     }
 }

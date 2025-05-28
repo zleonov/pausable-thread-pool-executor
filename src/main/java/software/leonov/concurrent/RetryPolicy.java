@@ -23,7 +23,7 @@ import java.util.function.Consumer;
  * <b>Discussion:</b><br>
  * Java provides 4 <i>saturation policies</i> to handle rejected tasks: {@link AbortPolicy} (default),
  * {@link CallerRunsPolicy}, {@link DiscardPolicy}, and {@link DiscardOldestPolicy} when using a
- * {@code ThreadPoolExecutor} with a bounded {@link ThreadPoolExecutor#getQueue() work queue}. There is no predefined
+ * {@code ThreadPoolExecutor} with a bounded {@link ThreadPoolExecutor#getQueue() task queue}. There is no predefined
  * saturation policy to make the caller block when the queue is full. {@code CallerRunsPolicy} provides the closest
  * functionality, executing the rejected task in the thread which tried to submit the task, de facto throttling task
  * submission.
@@ -44,9 +44,7 @@ import java.util.function.Consumer;
  * </ul>
  * <p>
  * Instances of this policy are created using a {@link RetryPolicy.Builder builder} obtained from
- * {@link #setMaxRetries(int)}:
- * <p>
- * <pre>{@code
+ * {@link #setMaxRetries(int)}:<pre>{@code
  *   RetryPolicy.setMaxRetries(...)
  *              .setInitialDelay(Duration.ofMillis(...))
  *              .setMaxDelay(Duration.ofSeconds(...))
@@ -58,7 +56,7 @@ import java.util.function.Consumer;
  * 
  * @author Zhenya Leonov
  */
-public class RetryPolicy implements RejectedExecutionHandler {
+public final class RetryPolicy implements RejectedExecutionHandler {
 
     private final int    maxRetries;
     private final long   initialDelayMillis;

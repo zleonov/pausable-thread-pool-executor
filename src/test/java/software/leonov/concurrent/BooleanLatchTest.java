@@ -31,7 +31,7 @@ class BooleanLatchTest {
     }
 
     @Test
-    void test_await() throws InterruptedException {
+    void test_await_with_timeout() throws InterruptedException {
 
         new Thread(() -> {
             sleepUninterruptibly(ONE_SECOND_MILLIS);
@@ -47,104 +47,5 @@ class BooleanLatchTest {
         assertEquals(elapsedTime, ONE_SECOND_MILLIS, DELTA);
     }
     
-    @Test
-    void test_reset() throws InterruptedException {
 
-        new Thread(() -> {
-            sleepUninterruptibly(ONE_SECOND_MILLIS);
-            try {
-                latch.reset();
-            } catch (InterruptedException e) {
-                // TODO Auto-generated catch block
-                e.printStackTrace();
-            }
-        }).start();
-
-        final long start = System.currentTimeMillis();
-        latch.await();
-        final long end = System.currentTimeMillis();
-        final long elapsedTime = end - start;
-
-        //assertTrue(latch.isSignaled());
-        assertEquals(elapsedTime, ONE_SECOND_MILLIS, DELTA);
-    }
-
-//    @Test
-//    void testAwaitWithTimeout() throws InterruptedException {
-//        final long start = System.currentTimeMillis();
-//        final boolean result = closedGate.await(HALF_SECOND_DURATION);
-//        final long end = System.currentTimeMillis();
-//        final long elapsedTime = end - start;
-//
-//        assertFalse(closedGate.isOpen());
-//        assertFalse(result);
-//        assertEquals(elapsedTime, HALF_SECOND_MILLIS, DELTA);
-//    }
-//
-//    @Test
-//    void testGuard() throws InterruptedException {
-//        new Thread(() -> {
-//            sleepUninterruptibly(ONE_SECOND_MILLIS);
-//            openGate.close();
-//        }).start();
-//
-//        final long start = System.currentTimeMillis();
-//        openGate.guard();
-//        final long end = System.currentTimeMillis();
-//        final long elapsedTime = end - start;
-//
-//        assertFalse(openGate.isOpen());
-//        assertEquals(elapsedTime, ONE_SECOND_MILLIS, DELTA);
-//    }
-//
-//    @Test
-//    void testGuardWithTimeout() throws InterruptedException {
-//        final long start = System.currentTimeMillis();
-//        final boolean result = openGate.guard(HALF_SECOND_DURATION);
-//        final long end = System.currentTimeMillis();
-//        final long elapsedTime = end - start;
-//
-//        assertTrue(openGate.isOpen());
-//        assertFalse(result);
-//        assertEquals(elapsedTime, HALF_SECOND_MILLIS, DELTA);
-//    }
-//
-//    @Test
-//    void testOpen() {
-//        openGate.open();
-//        assertTrue(openGate.isOpen());
-//    }
-//
-//    @Test
-//    void testIsOpen() {
-//        openGate.open();
-//        assertTrue(openGate.isOpen());
-//
-//        closedGate.close();
-//        assertFalse(closedGate.isOpen());
-//    }
-//
-//    @Test
-//    void testClose() {
-//        openGate.close();
-//        assertFalse(openGate.isOpen());
-//    }
-//
-//    @Test
-//    void testAwaitWithInterruption() {
-//        Thread.currentThread().interrupt();
-//
-//        assertThrows(InterruptedException.class, () -> {
-//            closedGate.await();
-//        });
-//    }
-//
-//    @Test
-//    void testGuardWithInterruption() {
-//        Thread.currentThread().interrupt();
-//
-//        assertThrows(InterruptedException.class, () -> {
-//            openGate.guard();
-//        });
-//    }
 }

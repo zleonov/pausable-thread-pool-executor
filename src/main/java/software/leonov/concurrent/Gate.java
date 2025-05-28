@@ -131,8 +131,8 @@ public final class Gate implements Awaitable {
      *                              supported)
      * @throws NullPointerException if {@code duration} is {@code null}
      */
-    public boolean guard(final Duration duration) throws InterruptedException, NullPointerException, ArithmeticException {
-        return sync.tryAcquireSharedNanos(CLOSED, duration.toNanos());
+    public boolean guard(final Duration timeout) throws InterruptedException, NullPointerException, ArithmeticException {
+        return sync.tryAcquireSharedNanos(CLOSED, timeout.toNanos());
     }
 
     /**

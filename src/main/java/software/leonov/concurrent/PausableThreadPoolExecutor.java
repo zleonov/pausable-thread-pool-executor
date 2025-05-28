@@ -37,7 +37,7 @@ import java.util.function.Consumer;
  * executor does not affect actively executing tasks).
  * <p>
  * The executor can be paused at any point unless it is {@link #isShutdown() shutting down} and the {@link #getQueue()
- * work queue} is empty. Note that calling {@link #shutdown()} does not automatically resume the executor. To do that
+ * task queue} is empty. Note that calling {@link #shutdown()} does not automatically resume the executor. To do that
  * call {@link #shutdownFast()} or {@link #shutdownNow()}.
  * <p>
  * Be careful of race conditions if the pause/resume functionality is used to control program flow. The boolean value
@@ -147,19 +147,27 @@ public final class PausableThreadPoolExecutor extends ThreadPoolExecutor impleme
         lock.lock();
         try {
             if (!paused)
-                // paused = !isShutdown() || getQueue().size() > 1;
-
                 /*
-                 * We should double check if there is a way to easily get around a benign race condition here: since we don't have
-                 * access to ThreadPoolExecutor's mainLock there is a theoretical chance that the last task was handed off to a thread
-                 * at just the right time such that the queue is empty, but the thread did NOT yet try to lock and check the pause
-                 * status in beforeExecute. So this method will return false, when there is a chance that a thread executing the last
-                 * task may be checking the pause state after this method returns.
-                 * 
-                 * The race condition is benign since no guarantees are made with regards to attempting to pause "pending tasks". If we
-                 * define pending tasks as being strictly on the workqueue then we eliminate the race condition by defintion. But if we
-                 * define pending tasks as any task on the queue or already assigned to a thread that has yet to begin executing it then
-                 * we can say we have a race condition.
+                 * A potential race condition exists when a pause request occurs simultaneously with the ThreadPoolExecutor shutting
+                 * down and processing its final task.
+                 *
+                 * If the last task was just handed off to a thread for execution, getQueue().isEmpty() will return true. However, if
+                 * that thread hasn't yet tried to acquire the lock in beforeExecute(), the call to lock.hasQueuedThreads() will also
+                 * return false. This suggest that there are no more remaining tasks and this method would return false, when
+                 * theoretically we could still pause the last task since it hasn't begun execution.
+                 *
+                 * This race condition is benign for several reasons:
+                 *
+                 * 1) Tasks can only be paused in beforeExecute() *prior* (but not during) execution.
+                 *
+                 * 2) Users have no visibility or control over the specific timing between a task's removal from the queue and its
+                 * actual execution in a thread.
+                 *
+                 * 3) No guarantees implied or explicit can exist regarding which thread will be the first to respond to a pause
+                 * request.
+                 *
+                 * From the user's perspective, if this race condition occurs, it simply means the pause request arrived immediately
+                 * after the last task's execution began, making it too late to pause.
                  */
                 paused = !isShutdown() || !getQueue().isEmpty() || lock.hasQueuedThreads();
             return paused;
@@ -293,7 +301,7 @@ public final class PausableThreadPoolExecutor extends ThreadPoolExecutor impleme
 
 //    /**
 //     * A handler for rejected tasks that blocks the calling thread until there is an open slot in the
-//     * {@link ThreadPoolExecutor#getQueue() work queue}.
+//     * {@link ThreadPoolExecutor#getQueue() task queue}.
 //     * <p>
 //     * Throws a {@link RejectedExecutionException} if the executor {@link #isShutdown is shutdown} or the calling thread is
 //     * {@link Thread#interrupt interrupted}, in the latter case setting the thread's {@link Thread#isInterrupted()
@@ -316,9 +324,9 @@ public final class PausableThreadPoolExecutor extends ThreadPoolExecutor impleme
 //        /**
 //         * Creates a new {@code CallerBlocksPolicy}.
 //         * 
-//         * @param before the runnable to run immediately before waiting for space to become available in the work queue (usually
+//         * @param before the runnable to run immediately before waiting for space to become available in the task queue (usually
 //         *               used for debugging and logging)
-//         * @param after  the runnable to run immediately after the task has been inserted into the work queue (usually used for
+//         * @param after  the runnable to run immediately after the task has been inserted into the task queue (usually used for
 //         *               debugging and logging)
 //         */
 //        public CallerBlocksPolicy(final Runnable before, final Runnable after) {
@@ -492,7 +500,7 @@ public final class PausableThreadPoolExecutor extends ThreadPoolExecutor impleme
      * {@link PausableThreadPoolExecutor#pause() pause}/{@link PausableThreadPoolExecutor#resume() resume} functionality,
      * unless you have strict control over the maximum concurrency level of the thread pool.</b> A thread in the pool only
      * becomes aware of a pause request in the {@link ThreadPoolExecutor#beforeExecute(Thread, Runnable) beforeExecute}
-     * method, after it is created and assigned to execute a task from the {@link ThreadPoolExecutor#getQueue() work queue}.
+     * method, after it is created and assigned to execute a task from the {@link ThreadPoolExecutor#getQueue() task queue}.
      * In the presence of unlimited incoming tasks, a cached thread pool in a paused state will continue to create new
      * threads indefinitely as each thread is assigned a task and then paused before execution.
      * <p>
@@ -514,7 +522,7 @@ public final class PausableThreadPoolExecutor extends ThreadPoolExecutor impleme
      * pause}/{@link PausableThreadPoolExecutor#resume() resume} functionality, unless you have strict control over the
      * maximum concurrency level of the thread pool.</b> A thread in the pool only becomes aware of a pause request in the
      * {@link ThreadPoolExecutor#beforeExecute(Thread, Runnable) beforeExecute} method, after it is created and assigned to
-     * execute a task from the {@link ThreadPoolExecutor#getQueue() work queue}. In the presence of unlimited incoming
+     * execute a task from the {@link ThreadPoolExecutor#getQueue() task queue}. In the presence of unlimited incoming
      * tasks, a cached thread pool in a paused state will continue to create new threads indefinitely as each thread is
      * assigned a task and then paused before execution.
      * <p>
@@ -526,7 +534,7 @@ public final class PausableThreadPoolExecutor extends ThreadPoolExecutor impleme
      *                        {@code true}
      * @param maximumPoolSize the maximum number of threads to allow in the pool
      * @param keepAliveTime   the maximum time excess threads will wait for new tasks before terminating
-     * @param queue           the work queue
+     * @param queue           the task queue
      * @return a {@link ThreadPoolBuilder builder} which creates custom {@code PausableThreadPoolExecutor}s
      */
     public static ThreadPoolBuilder newThreadPool(final int corePoolSize, final int maximumPoolSize, final Duration keepAliveTime, final BlockingQueue<Runnable> queue) {
@@ -551,7 +559,7 @@ public final class PausableThreadPoolExecutor extends ThreadPoolExecutor impleme
      * pause}/{@link PausableThreadPoolExecutor#resume() resume} functionality, unless you have strict control over the
      * maximum concurrency level of the thread pool.</b> A thread in the pool only becomes aware of a pause request in the
      * {@link ThreadPoolExecutor#beforeExecute(Thread, Runnable) beforeExecute} method, after it is created and assigned to
-     * execute a task from the {@link ThreadPoolExecutor#getQueue() work queue}. In the presence of unlimited incoming
+     * execute a task from the {@link ThreadPoolExecutor#getQueue() task queue}. In the presence of unlimited incoming
      * tasks, a cached thread pool in a paused state will continue to create new threads indefinitely as each thread is
      * assigned a task and then paused before execution.
      * <p>
@@ -616,7 +624,7 @@ public final class PausableThreadPoolExecutor extends ThreadPoolExecutor impleme
      * A builder which creates {@code PausableThreadPoolExecutor}s that generate new threads as needed, but will reuse
      * previously constructed threads when they are available.
      * <p>
-     * A {@link SynchronousQueue} will be used as the work queue, with idle threads expiring in 60 seconds. Unless otherwise
+     * A {@link SynchronousQueue} will be used as the task queue, with idle threads expiring in 60 seconds. Unless otherwise
      * specified the {@link Executors#defaultThreadFactory() default thread factory} and
      * {@link java.util.concurrent.ThreadPoolExecutor.AbortPolicy AbortPolicy} will be used as the
      * {@link ThreadPoolExecutor#getThreadFactory() thread factory} and the
@@ -626,7 +634,7 @@ public final class PausableThreadPoolExecutor extends ThreadPoolExecutor impleme
      * {@link PausableThreadPoolExecutor#pause() pause}/{@link PausableThreadPoolExecutor#resume() resume} functionality,
      * unless you have strict control over the maximum concurrency level of the thread pool.</b> A thread in the pool only
      * becomes aware of a pause request in the {@link ThreadPoolExecutor#beforeExecute(Thread, Runnable) beforeExecute}
-     * method, after it is created and assigned to execute a task from the {@link ThreadPoolExecutor#getQueue() work queue}.
+     * method, after it is created and assigned to execute a task from the {@link ThreadPoolExecutor#getQueue() task queue}.
      * In the presence of unlimited incoming tasks, a cached thread pool in a paused state will continue to create new
      * threads indefinitely as each thread is assigned a task and then paused before execution.
      * <p>
@@ -661,7 +669,7 @@ public final class PausableThreadPoolExecutor extends ThreadPoolExecutor impleme
      * Threads never expire and unless otherwise specified a {@link LinkedBlockingQueue},
      * {@link Executors#defaultThreadFactory() default thread factory}, and
      * {@link java.util.concurrent.ThreadPoolExecutor.AbortPolicy AbortPolicy} will be used as the
-     * {@link ThreadPoolExecutor#getQueue() work queue}, {@link ThreadPoolExecutor#getThreadFactory() thread factory}, and
+     * {@link ThreadPoolExecutor#getQueue() task queue}, {@link ThreadPoolExecutor#getThreadFactory() thread factory}, and
      * the {@link ThreadPoolExecutor#getRejectedExecutionHandler() rejected execution handler}, respectively.
      */
     public static class FixedThreadPoolBuilder extends AbstractThreadPoolBuilder {

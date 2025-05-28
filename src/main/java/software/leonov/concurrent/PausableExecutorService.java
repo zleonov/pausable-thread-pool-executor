@@ -57,7 +57,7 @@ public interface PausableExecutorService extends ExecutorService {
      * <ul>
      * <li>{@link #shutdown()}: all actively executing tasks and pending tasks are allowed to continue, but no new tasks
      * will be accepted</li>
-     * <li><b>shutdownFast()</b>: all actively executing tasks are allowed to continue, pending tasks are removed, and no
+     * <li><b>shutdownFast():</b> all actively executing tasks are allowed to continue, pending tasks are removed, and no
      * new tasks will be accepted</li>
      * <li>{@link #shutdownNow()}: all actively executing tasks are <u>interrupted</u>, pending tasks are removed, and no
      * new tasks will be accepted</li>

@@ -45,7 +45,7 @@ class BoundedExecutorServiceTest {
 
         @Override
         public void run() {
-            int n = count.addAndGet(1);
+            int n = count.incrementAndGet();
             stats.accept(n);
             long millis = ThreadLocalRandom.current().nextLong(100, 1000);
             System.out.println(Thread.currentThread().getName() + " sleeping for " + millis + "ms [" + "ntasks = " + n + "]");
