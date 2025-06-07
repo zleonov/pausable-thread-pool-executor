@@ -5,12 +5,19 @@ import static software.leonov.concurrent.PausableThreadPoolExecutor.drainFully;
 
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
+import java.util.AbstractCollection;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 
 /**
  * Static utility methods for working with {@link ThreadPoolExecutor}s and other {@link ExecutorService}s.
@@ -127,6 +134,53 @@ public final class Execution {
     }
 
     /**
+     * Executes the given tasks, returning a list of {@code Future}s holding their status when all tasks complete.
+     * {@link Future#isDone} is {@code true} for each element of the returned list. Note that a task could have
+     * <i>completed</i> normally or by throwing an exception. The {@link Future#get() get()} method of each {@code Future}
+     * will return {@code null} upon <i>successful</i> completion.
+     * <p>
+     * This method is simply the analog to {@link ExecutorService#invokeAll(Collection)} which accepts {@code Runnable}
+     * tasks instead of {@code Callable} tasks.
+     * 
+     * @param exec  the specified executor
+     * @param tasks the collection of tasks
+     * @return a list of Futures representing the tasks given task list, each of which has completed
+     * @throws InterruptedException       if interrupted while waiting
+     * @throws RejectedExecutionException if any task cannot be scheduled for execution
+     */
+    public static List<Future<Object>> invokeAll(final ExecutorService exec, final Collection<? extends Runnable> tasks) throws InterruptedException, RejectedExecutionException {
+        requireNonNull(exec, "exec == null");
+        requireNonNull(tasks, "tasks == null");
+        return exec.invokeAll(new TransformedCollection<>(tasks, Executors::callable));
+    }
+
+    /**
+     * Executes the given tasks, returning a list of {@code Future}s holding their status when all tasks complete or the
+     * {@code timeout} expires, whichever happens first. {@link Future#isDone} is {@code true} for each element of the
+     * returned list. Tasks which have not completed are {@link Future#cancel(boolean) cancelled}. Note that a task could
+     * have <i>completed</i> normally or by throwing an exception. The {@link Future#get() get()} method of each
+     * {@code Future} will return {@code null} upon <i>successful</i> completion.
+     * <p>
+     * This method is simply the analog to {@link ExecutorService#invokeAll(Collection, long, TimeUnit)} which accepts
+     * {@code Runnable} tasks instead of {@code Callable} tasks.
+     * 
+     * @param exec    the specified executor
+     * @param tasks   the collection of tasks
+     * @param timeout the maximum time to wait
+     * @param unit    the time unit of the timeout argument
+     * @return a list of {@code Future}s representing the completed tasks (if the {@code timeout} expires some of these
+     *         tasks will not have completed)
+     * @throws InterruptedException       if interrupted while waiting
+     * @throws RejectedExecutionException if any task cannot be scheduled for execution
+     */
+    public static List<Future<Object>> invokeAll(final ExecutorService exec, final Collection<? extends Runnable> tasks, final long timeout, final TimeUnit unit) throws InterruptedException, RejectedExecutionException {
+        requireNonNull(exec, "exec == null");
+        requireNonNull(tasks, "tasks == null");
+        requireNonNull(tasks, "unit == null");
+        return exec.invokeAll(new TransformedCollection<>(tasks, Executors::callable), timeout, unit);
+    }
+
+    /**
      * Add a shutdown hook to block until all tasks in the specified {@code ExecutorService} have completed execution.
      * <p>
      * Use this method only if you can guarantee that all tasks in the specified executor will eventually succeed in a
@@ -158,6 +212,38 @@ public final class Execution {
         t.setName("ShutdownHook-for-" + exec.getClass().getSimpleName());
 
         Runtime.getRuntime().addShutdownHook(t);
+    }
+
+    private static class TransformedCollection<F, T> extends AbstractCollection<T> {
+        final Collection<F>                    from;
+        final Function<? super F, ? extends T> function;
+
+        private TransformedCollection(final Collection<F> from, final Function<? super F, ? extends T> function) {
+            this.from     = from;
+            this.function = function;
+        }
+
+        @Override
+        public Iterator<T> iterator() {
+            final Iterator<F> itor = from.iterator();
+            return new Iterator<T>() {
+
+                @Override
+                public boolean hasNext() {
+                    return itor.hasNext();
+                }
+
+                @Override
+                public T next() {
+                    return function.apply(itor.next());
+                }
+            };
+        }
+
+        @Override
+        public int size() {
+            return from.size();
+        }
     }
 
 }
