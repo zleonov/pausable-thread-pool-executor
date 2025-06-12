@@ -11,12 +11,14 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.function.Function;
 
 /**
@@ -139,10 +141,10 @@ public final class Execution {
      * <i>completed</i> normally or by throwing an exception. The {@link Future#get() get()} method of each {@code Future}
      * will return {@code null} upon <i>successful</i> completion.
      * <p>
-     * This method is simply the analog to {@link ExecutorService#invokeAll(Collection)} which accepts {@code Runnable}
-     * tasks instead of {@code Callable} tasks.
+     * This method is a shorthand that {@link Executors#callable(Runnable) adapts} {@code Runnable} tasks to
+     * {@code Callable} tasks before calling {@link ExecutorService#invokeAll(Collection)}.
      * 
-     * @param exec  the specified executor
+     * @param exec  the executor which will execute the tasks
      * @param tasks the collection of tasks
      * @return a list of Futures representing the tasks given task list, each of which has completed
      * @throws InterruptedException       if interrupted while waiting
@@ -161,10 +163,10 @@ public final class Execution {
      * have <i>completed</i> normally or by throwing an exception. The {@link Future#get() get()} method of each
      * {@code Future} will return {@code null} upon <i>successful</i> completion.
      * <p>
-     * This method is simply the analog to {@link ExecutorService#invokeAll(Collection, long, TimeUnit)} which accepts
-     * {@code Runnable} tasks instead of {@code Callable} tasks.
+     * This method is a shorthand that {@link Executors#callable(Runnable) adapts} {@code Runnable} tasks to
+     * {@code Callable} tasks before calling {@link ExecutorService#invokeAll(Collection, long, TimeUnit)}.
      * 
-     * @param exec    the specified executor
+     * @param exec    the executor which will execute the tasks
      * @param tasks   the collection of tasks
      * @param timeout the maximum time to wait
      * @param unit    the time unit of the timeout argument
@@ -178,6 +180,56 @@ public final class Execution {
         requireNonNull(tasks, "tasks == null");
         requireNonNull(tasks, "unit == null");
         return exec.invokeAll(new TransformedCollection<>(tasks, Executors::callable), timeout, unit);
+    }
+
+    /**
+     * Executes the given tasks, returning the result of the first one that has completed successfully, before the given
+     * timeout elapses. Upon normal or exceptional return, tasks that have not completed are cancelled. The results of this
+     * method are undefined if the given collection is modified while this operation is in progress.
+     * <p>
+     * This method is a shorthand that {@link Executors#callable(Runnable) adapts} {@code Runnable} tasks to
+     * {@code Callable} tasks before calling {@link ExecutorService#invokeAny(Collection)}.
+     * 
+     * @param exec    the executor which will execute the tasks
+     * @param tasks   the collection of tasks
+     * @param timeout the maximum time to wait
+     * @param unit    the time unit of the timeout argument
+     * @return the result returned by one of the tasks
+     * @throws InterruptedException       if interrupted while waiting
+     * @throws ExecutionException         if no task successfully completes
+     * @throws RejectedExecutionException if tasks cannot be scheduled for execution
+     */
+    public static Object invokeAny(final ExecutorService exec, final Collection<? extends Runnable> tasks) throws InterruptedException, ExecutionException, RejectedExecutionException {
+        requireNonNull(exec, "exec == null");
+        requireNonNull(tasks, "tasks == null");
+        requireNonNull(tasks, "unit == null");
+        return exec.invokeAny(new TransformedCollection<>(tasks, Executors::callable));
+    }
+
+    /**
+     * Executes the given tasks, returning the result of the first one that has completed successfully, before the given
+     * timeout elapses. Upon normal or exceptional return, tasks that have not completed are cancelled. The results of this
+     * method are undefined if the given collection is modified while this operation is in progress.
+     * <p>
+     * This method is a shorthand that {@link Executors#callable(Runnable) adapts} {@code Runnable} tasks to
+     * {@code Callable} tasks before calling {@link ExecutorService#invokeAny(Collection, long, TimeUnit)}.
+     *
+     * @param exec    the executor which will execute the tasks
+     * @param tasks   the collection of tasks
+     * @param timeout the maximum time to wait
+     * @param unit    the time unit of the timeout argument
+     * @return the result returned by one of the tasks
+     * @throws InterruptedException       if interrupted while waiting
+     * @throws ExecutionException         if no task successfully completes
+     * @throws TimeoutException           if the given timeout elapses before any task successfully completes
+     * @throws RejectedExecutionException if tasks cannot be scheduled for execution
+     */
+    public static Object invokeAny(final ExecutorService exec, final Collection<? extends Runnable> tasks, final long timeout, final TimeUnit unit)
+            throws InterruptedException, ExecutionException, TimeoutException, RejectedExecutionException {
+        requireNonNull(exec, "exec == null");
+        requireNonNull(tasks, "tasks == null");
+        requireNonNull(tasks, "unit == null");
+        return exec.invokeAny(new TransformedCollection<>(tasks, Executors::callable), timeout, unit);
     }
 
     /**
