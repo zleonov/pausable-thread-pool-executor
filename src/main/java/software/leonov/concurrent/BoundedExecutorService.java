@@ -101,37 +101,6 @@ public final class BoundedExecutorService extends AbstractExecutorService {
         exec.shutdown();
     }
 
-    /**
-     * Halts the processing of pending tasks but does not attempt to stop actively executing tasks. All pending tasks are
-     * drained (removed) from the task queue and returned when this method completes.
-     * <p>
-     * This method does not wait for actively executing tasks to terminate. Use
-     * {@link Execution#awaitTermination(ExecutorService)} or {@link ThreadPoolExecutor#awaitTermination(long, TimeUnit)} to
-     * do that.
-     * <p>
-     * This method is the middle ground between {@link ExecutorService#shutdown()} and
-     * {@link ExecutorService#shutdownNow()}:
-     * <ul>
-     * <li>{@link ExecutorService#shutdown() shutdown()}: all actively executing tasks and pending tasks are allowed to
-     * continue, but no new tasks will be accepted</li>
-     * <li><b>shutdownFast():</b> all actively executing tasks are allowed to continue, <b>pending tasks are removed</b>,
-     * and no new tasks will be accepted</li>
-     * <li>{@link ExecutorService#shutdownNow() shutdownNow()}: all actively executing tasks are <u>interrupted</u>, pending
-     * tasks are removed, and no new tasks will be accepted</li>
-     * </ul>
-     * <p>
-     * <b>Warning:</b> This method is not supported if the underlying {@code ExecutorService} supplied at construction is
-     * not an instance of {@link ThreadPoolExecutor}.
-     * 
-     * @return the list of pending tasks throws UnsupportedOperationException if the underlying {@code ExecutorService}
-     *         supplied at construction is not an instance of {@link ThreadPoolExecutor}
-     */
-    public List<Runnable> shutdownFast() throws UnsupportedOperationException {
-        if (exec instanceof ThreadPoolExecutor)
-            return Execution.shutdownFast((ThreadPoolExecutor) exec);
-        throw new UnsupportedOperationException("the underlying ExecutorService is not an instance of ThreadPoolExecutor");
-    }
-
     @Override
     public List<Runnable> shutdownNow() {
         final List<Runnable> tasks = exec.shutdownNow();
