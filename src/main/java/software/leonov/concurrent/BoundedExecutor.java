@@ -9,7 +9,7 @@ import java.util.concurrent.Semaphore;
 
 /**
  * A {@code BoundedExecutor} enforces a limit on the maximum number of tasks that can be
- * {@link Executor#execute(Runnable) executed} concurrently by a {@link ThreadPoolExecutor}. Once the maximum number of
+ * {@link Executor#execute(Runnable) executed} concurrently by another {@code Executor}. Once the maximum number of
  * tasks are executing attempts to execute another task will block until a previous task completes.
  * <p>
  * Users can use this class to control the concurrency in different sections of their code to avoid overloading a shared
@@ -19,9 +19,10 @@ import java.util.concurrent.Semaphore;
  * executor. The bounding mechanism focuses solely on limiting the number of tasks accepted for execution.
  * <p>
  * The precise definition of {@link Executor#execute(Runnable) execute} is solely defined by the underlying executor,
- * and may include putting pending tasks on a queue (e.g. as is the case with a {@link Executors#newFixedThreadPool(int)
- * fixed thread pool executor}) if the executor is busy. In any case the underlying executor should have the capacity to
- * accept more tasks than the enforced limit.
+ * and may include putting pending tasks on a queue when the executor is busy, for example when using a standard
+ * {@link Executors#newFixedThreadPool(int) fixed thread pool}. In any case, <b><u>in order for the bounding mechanism
+ * to function correctly the underlying executor MUST be able to accept an unlimited number of tasks for
+ * execution.</b></u> See {@link BoundedExecutorService} for further discussion.
  *
  * @author Zhenya Leonov
  */
@@ -33,7 +34,7 @@ public final class BoundedExecutor implements Executor {
 
     /**
      * Creates a new {@code BoundedExecutor} which will limit the maximum number of tasks that can be executed concurrently
-     * by the underlying {@link ThreadPoolExecutor}.
+     * by the underlying {@code Executor}.
      * 
      * @param exec   the underlying executor
      * @param ntasks the maximum number of tasks allowed to execute concurrently
