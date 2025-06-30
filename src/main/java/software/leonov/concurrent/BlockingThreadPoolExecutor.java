@@ -2,13 +2,11 @@ package software.leonov.concurrent;
 
 import static java.util.Objects.requireNonNull;
 
-import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.RejectedExecutionHandler;
 import java.util.concurrent.Semaphore;
-import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -39,7 +37,7 @@ public final class BlockingThreadPoolExecutor extends ThreadPoolExecutor {
      * @param nthreads the number of threads in the pool
      */
     public BlockingThreadPoolExecutor(final int nthreads) {
-        super(nthreads, nthreads, 0L, TimeUnit.MILLISECONDS, new SynchronousQueue<>());
+        super(nthreads, nthreads, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<>());
 
         if (nthreads < 1)
             throw new IllegalArgumentException("nthreads < 1");

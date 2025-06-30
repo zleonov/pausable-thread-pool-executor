@@ -9,7 +9,7 @@ import java.util.concurrent.Semaphore;
 
 /**
  * A {@code BoundedExecutor} enforces a limit on the maximum number of tasks that can be
- * {@link Executor#execute(Runnable) executed} concurrently by another {@code Executor}. Once the maximum number of
+ * {@link Executor#execute(Runnable) executed} concurrently by a {@link ThreadPoolExecutor}. Once the maximum number of
  * tasks are executing attempts to execute another task will block until a previous task completes.
  * <p>
  * Users can use this class to control the concurrency in different sections of their code to avoid overloading a shared
@@ -33,7 +33,7 @@ public final class BoundedExecutor implements Executor {
 
     /**
      * Creates a new {@code BoundedExecutor} which will limit the maximum number of tasks that can be executed concurrently
-     * by the underlying {@code Executor}.
+     * by the underlying {@link ThreadPoolExecutor}.
      * 
      * @param exec   the underlying executor
      * @param ntasks the maximum number of tasks allowed to execute concurrently
