@@ -24,12 +24,11 @@ import java.util.concurrent.TimeUnit;
  * {@code ExecutorService}. The bounding mechanism focuses solely on limiting the number of tasks accepted for
  * execution.
  * <p>
- * <b>Usage considerations:</b><br>
- * While {@code BoundedExecutorService} is agnostic to the underlying {@code ExecutorService} implementation, e.g.
- * {@link Executors#newFixedThreadPool(int) fixed thread pools}, {@link Executors#newCachedThreadPool() cached thread
- * pools}, or custom implementations with varying {@link ThreadPoolExecutor#getQueue() task queue}s, the underlying
- * {@code ExecutorService} should have the capacity to accept more tasks (either by executing them immediately or by
- * placing them on the queue) than the enforced limit.
+ * <b>Usage considerations:</b> While {@code BoundedExecutorService} is agnostic to the underlying
+ * {@code ExecutorService} implementation, e.g. {@link Executors#newFixedThreadPool(int) fixed thread pools},
+ * {@link Executors#newCachedThreadPool() cached thread pools}, or custom implementations with varying
+ * {@link ThreadPoolExecutor#getQueue() task queue}s, the underlying {@code ExecutorService} should have the capacity to
+ * accept more tasks (either by executing them immediately or by placing them on the queue) than the enforced limit.
  * 
  * @author Zhenya Leonov
  */
@@ -40,7 +39,7 @@ public final class BoundedExecutorService extends AbstractExecutorService {
     private final int             ntasks;
 
     /**
-     * Creates a new {@link BoundedExecutorService} which will limit on the maximum number of tasks that can be submitted
+     * Creates a new {@link BoundedExecutorService} which will limit the maximum number of tasks that can be submitted to
      * the underlying {@code ExecutorService} via any of its {@code execute}, {@code submit}, {@code invokeAny}, or
      * {@code invokeAll} methods. Once the maximum number of tasks have been submitted further submissions will block until
      * a previous task finishes executing.
