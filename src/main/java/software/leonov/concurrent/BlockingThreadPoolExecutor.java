@@ -2,6 +2,7 @@ package software.leonov.concurrent;
 
 import static java.util.Objects.requireNonNull;
 
+import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.RejectedExecutionException;
@@ -30,6 +31,7 @@ public final class BlockingThreadPoolExecutor extends ThreadPoolExecutor {
 
     private final Semaphore semaphore;
     private final int       nthreads;
+    private Counter         taskCounter = new Counter(0);
 
     /**
      * Creates a new {@link BlockingThreadPoolExecutor} which executes tasks using a fixed number of threads.
@@ -70,6 +72,8 @@ public final class BlockingThreadPoolExecutor extends ThreadPoolExecutor {
     public void execute(final Runnable command) {
         requireNonNull(command, "command == null");
 
+        taskCounter.countUp();
+
         try {
             semaphore.acquire();
             super.execute(() -> {
@@ -84,6 +88,8 @@ public final class BlockingThreadPoolExecutor extends ThreadPoolExecutor {
             throw e;
         } catch (final InterruptedException e) {
             Thread.currentThread().interrupt();
+        } finally {
+            taskCounter.countDown();
         }
     }
 
@@ -130,6 +136,15 @@ public final class BlockingThreadPoolExecutor extends ThreadPoolExecutor {
      */
     public void setThreadFactory(ThreadFactory threadFactory) {
         throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public List<Runnable> shutdownNow() {
+        final List<Runnable> tasks = super.shutdownNow();
+        for (int i = 0; i < tasks.size(); i++)
+            taskCounter.countDown();
+        return tasks;
+
     }
 
     @Override
