@@ -182,7 +182,7 @@ public final class BlockingThreadPoolExecutor extends ThreadPoolExecutor {
         return tasks;
     }
 
-    public void awaitCompletion() throws InterruptedException {
+    public void await() throws InterruptedException {
         counter.await();
     }
 
