@@ -2,7 +2,6 @@ package software.leonov.concurrent;
 
 import static java.util.Objects.requireNonNull;
 
-import java.nio.channels.UnsupportedAddressTypeException;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Callable;
@@ -36,32 +35,33 @@ public final class BlockingThreadPoolExecutor extends ThreadPoolExecutor {
 
     private final Semaphore semaphore;
     private final int       nthreads;
-    private Counter         taskCounter = new Counter(0);
+    private Counter         counter = new Counter(0);
 
-    private class CountingFutureTask<V> extends FutureTask<V> {
-
-        public CountingFutureTask(final Callable<V> callable) {
-            super(callable);
-        }
-
-        public CountingFutureTask(final Runnable runnable, V result) {
-            super(runnable, result);
-        }
-
-        protected void done() {
-            taskCounter.countDown();
-        }
-    }
-
-    @Override
-    protected <T> RunnableFuture<T> newTaskFor(final Callable<T> callable) {
-        return new FutureTask<T>(callable);
-    }
-
-    @Override
-    protected <T> RunnableFuture<T> newTaskFor(final Runnable runnable, final T value) {
-        return new CountingFutureTask<T>(runnable, value);
-    }
+//    private class Task<V> extends FutureTask<V> {
+//
+//        public Task(final Callable<V> callable) {
+//            super(callable);
+//        }
+//
+//        public Task(final Runnable runnable, final V result) {
+//            super(runnable, result);
+//        }
+//
+//        protected void done() {
+//            counter.countDown();
+//            semaphore.release();
+//        }
+//    }
+//
+//    @Override
+//    protected <T> RunnableFuture<T> newTaskFor(final Callable<T> callable) {
+//        return new Task<T>(callable);
+//    }
+//
+//    @Override
+//    protected <T> RunnableFuture<T> newTaskFor(final Runnable runnable, final T value) {
+//        return new Task<T>(runnable, value);
+//    }
 
     /**
      * Creates a new {@link BlockingThreadPoolExecutor} which executes tasks using a fixed number of threads.
@@ -104,15 +104,17 @@ public final class BlockingThreadPoolExecutor extends ThreadPoolExecutor {
 
         try {
             semaphore.acquire();
-            taskCounter.countUp();
+            counter.countUp();
             super.execute(() -> {
                 try {
                     command.run();
                 } finally {
+                    counter.countDown();
                     semaphore.release();
                 }
             });
         } catch (final RejectedExecutionException e) {
+            counter.countDown();
             semaphore.release();
             throw e;
         } catch (final InterruptedException e) {
@@ -173,9 +175,15 @@ public final class BlockingThreadPoolExecutor extends ThreadPoolExecutor {
     @Override
     public List<Runnable> shutdownNow() {
         final List<Runnable> tasks = super.shutdownNow();
-        for (int i = 0; i < tasks.size(); i++)
-            taskCounter.countDown();
+        for (int i = 0; i < tasks.size(); i++) {
+            counter.countDown();
+            semaphore.release();
+        }
         return tasks;
+    }
+
+    public void awaitCompletion() throws InterruptedException {
+        counter.await();
     }
 
     /**
