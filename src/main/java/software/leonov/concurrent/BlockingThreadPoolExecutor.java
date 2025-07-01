@@ -2,11 +2,16 @@ package software.leonov.concurrent;
 
 import static java.util.Objects.requireNonNull;
 
+import java.nio.channels.UnsupportedAddressTypeException;
 import java.util.List;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.Callable;
 import java.util.concurrent.Executors;
+import java.util.concurrent.FutureTask;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.RejectedExecutionHandler;
+import java.util.concurrent.RunnableFuture;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -32,6 +37,31 @@ public final class BlockingThreadPoolExecutor extends ThreadPoolExecutor {
     private final Semaphore semaphore;
     private final int       nthreads;
     private Counter         taskCounter = new Counter(0);
+
+    private class CountingFutureTask<V> extends FutureTask<V> {
+
+        public CountingFutureTask(final Callable<V> callable) {
+            super(callable);
+        }
+
+        public CountingFutureTask(final Runnable runnable, V result) {
+            super(runnable, result);
+        }
+
+        protected void done() {
+            taskCounter.countDown();
+        }
+    }
+
+    @Override
+    protected <T> RunnableFuture<T> newTaskFor(final Callable<T> callable) {
+        return new FutureTask<T>(callable);
+    }
+
+    @Override
+    protected <T> RunnableFuture<T> newTaskFor(final Runnable runnable, final T value) {
+        return new CountingFutureTask<T>(runnable, value);
+    }
 
     /**
      * Creates a new {@link BlockingThreadPoolExecutor} which executes tasks using a fixed number of threads.
@@ -72,10 +102,9 @@ public final class BlockingThreadPoolExecutor extends ThreadPoolExecutor {
     public void execute(final Runnable command) {
         requireNonNull(command, "command == null");
 
-        taskCounter.countUp();
-
         try {
             semaphore.acquire();
+            taskCounter.countUp();
             super.execute(() -> {
                 try {
                     command.run();
@@ -88,8 +117,6 @@ public final class BlockingThreadPoolExecutor extends ThreadPoolExecutor {
             throw e;
         } catch (final InterruptedException e) {
             Thread.currentThread().interrupt();
-        } finally {
-            taskCounter.countDown();
         }
     }
 
@@ -98,6 +125,7 @@ public final class BlockingThreadPoolExecutor extends ThreadPoolExecutor {
      * 
      * @throws UnsupportedOperationException always
      */
+    @Override
     public void setRejectedExecutionHandler(final RejectedExecutionHandler handler) {
         throw new UnsupportedOperationException();
     }
@@ -107,6 +135,7 @@ public final class BlockingThreadPoolExecutor extends ThreadPoolExecutor {
      * 
      * @throws UnsupportedOperationException always
      */
+    @Override
     public void setCorePoolSize(final int corePoolSize) {
         throw new UnsupportedOperationException();
     }
@@ -116,6 +145,7 @@ public final class BlockingThreadPoolExecutor extends ThreadPoolExecutor {
      * 
      * @throws UnsupportedOperationException always
      */
+    @Override
     public void setMaximumPoolSize(final int maximumPoolSize) {
         throw new UnsupportedOperationException();
     }
@@ -125,6 +155,7 @@ public final class BlockingThreadPoolExecutor extends ThreadPoolExecutor {
      * 
      * @throws UnsupportedOperationException always
      */
+    @Override
     public void setKeepAliveTime(final long time, final TimeUnit unit) {
         throw new UnsupportedOperationException();
     }
@@ -134,6 +165,7 @@ public final class BlockingThreadPoolExecutor extends ThreadPoolExecutor {
      * 
      * @throws UnsupportedOperationException always
      */
+    @Override
     public void setThreadFactory(ThreadFactory threadFactory) {
         throw new UnsupportedOperationException();
     }
@@ -144,7 +176,26 @@ public final class BlockingThreadPoolExecutor extends ThreadPoolExecutor {
         for (int i = 0; i < tasks.size(); i++)
             taskCounter.countDown();
         return tasks;
+    }
 
+    /**
+     * This operation is not supported.
+     * 
+     * @throws UnsupportedOperationException always
+     */
+    @Override
+    public BlockingQueue<Runnable> getQueue() {
+        throw new UnsupportedOperationException();
+    }
+
+    /**
+     * This operation is not supported.
+     * 
+     * @throws UnsupportedOperationException always
+     */
+    @Override
+    public boolean remove(Runnable task) {
+        throw new UnsupportedOperationException();
     }
 
     @Override
