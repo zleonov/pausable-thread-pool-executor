@@ -79,6 +79,9 @@ public final class BoundedExecutor implements Executor {
 
     /**
      * Returns the underlying {@code Executor}.
+     * <p>
+     * <b>Warning:/<b> This method is provided for debugging and testing purposes. If the underlying executor is modified
+     * externally while this class is being used the results are undefined.
      * 
      * @return the underlying {@code Executor}
      */
