@@ -231,7 +231,7 @@ public final class BoundedExecutorService extends AbstractExecutorService {
     /**
      * Returns the underlying {@code ExecutorService}.
      * <p>
-     * <b>Warning:/<b> This method is provided for debugging and testing purposes. If the underlying executor service is
+     * <b>Warning:<b> This method is provided for debugging and testing purposes. If the underlying executor service is
      * modified externally while this class is being used the results are undefined.
      * 
      * @return the underlying {@code ExecutorService}
