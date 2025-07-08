@@ -132,10 +132,10 @@ public final class BoundedExecutorService extends AbstractExecutorService {
      * Waits for all currently submitted tasks to complete execution.
      * <p>
      * Provides a blocking mechanism that suspends the calling thread until all tasks that have been submitted to this
-     * executor via {@link #execute(Runnable) execute} or its various {@code submit} methods have finished processing. The
-     * executor remains fully operational after this method returns.
+     * executor service via any of its {@code execute}, {@code submit}, {@code invokeAny}, or {@code invokeAll} methods have
+     * finished processing. The executor service remains fully operational after this method returns.
      * <p>
-     * <b>Motivation and Design Rationale</b>
+     * <b>Motivation and Design Rationale:</b>
      * <p>
      * Standard {@link ExecutorService} implementations provide several mechanisms for waiting on task completion, but each
      * comes with limitations that make them undesirable for certain use cases:
@@ -166,11 +166,11 @@ public final class BoundedExecutorService extends AbstractExecutorService {
      * </td>
      * </tr>
      * <tr>
-     * <td>{@link ExecutorService#shutdown() Shutdown} executor and wait for all tasks to complete using
+     * <td>{@link ExecutorService#shutdown() Shutdown} executor service and wait for all tasks to complete using
      * {@link ExecutorService#awaitTermination(long, TimeUnit) awaitTermination}</td>
      * <td>
      * <ul>
-     * <li>Permanently disables the executor, making it unusuable for subsequent execution</li>
+     * <li>Permanently disables the executor service, making it unusuable for subsequent execution</li>
      * </ul>
      * </td>
      * </tr>
@@ -179,10 +179,10 @@ public final class BoundedExecutorService extends AbstractExecutorService {
      * </table>
      * <p>
      * In contrast, this method uses a {@link Counter} to track submitted and completed tasks, allowing users to wait for
-     * task completion on any set of tasks, submitted through any method, without shutting down the executor or managing
-     * individual {@code Future}s.
+     * task completion on any set of tasks, without shutting down the executor service or managing individual
+     * {@code Future}s.
      * <p>
-     * <b>Warning:</b> It is generally required that all tasks intended for the current batch be submitted <i>before</i>
+     * <b>Warning:</b> it is generally expected that all tasks intended for the current batch be submitted <i>before</i>
      * calling {@code await} to ensure correct behavior. Race conditions may occur if some threads are actively submitting
      * tasks while other threads are waiting for tasks to complete.
      *
