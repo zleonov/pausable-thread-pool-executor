@@ -16,9 +16,9 @@ import java.util.concurrent.ThreadPoolExecutor.DiscardPolicy;
 import java.util.function.Consumer;
 
 /**
- * A handler for rejected tasks that attempts to retry {@link ExecutorService#execute(Runnable) execution} (in the
- * calling thread), unless the executor has been {@link ExecutorService#isShutdown() shutdown}, in which case it throws
- * an {@link RejectedExecutionException}.
+ * A handler for rejected tasks that attempts to retry {@link ExecutorService#execute(Runnable) execution}, unless the
+ * executor has been {@link ExecutorService#isShutdown() shutdown}, in which case it throws an
+ * {@link RejectedExecutionException}.
  * <p>
  * <b>Discussion:</b><br>
  * Java provides 4 <i>saturation policies</i> to handle rejected tasks: {@link AbortPolicy} (default),
@@ -30,17 +30,15 @@ import java.util.function.Consumer;
  * <p>
  * {@code RetryPolicy} offers advantages over {@code CallerRunsPolicy} in several scenarios:
  * <ul>
- * <li>When it's acceptable but not preferable to reject a long running task: {@code RetryPolicy} can be configured to
- * use {@link Builder#setInitialDelay(Duration) constant} delay or an
- * <a href="https://en.wikipedia.org/wiki/Exponential_backoff" target="_blank">exponential backoff</a>
- * {@link Builder#setMultiplier(double) strategy} between retries, with an optional
- * {@link Builder#setMaxTimeout(Duration) maximum timeout}.
+ * <li>When it's acceptable but not preferable to reject a task: {@code RetryPolicy} can be configured to use constant
+ * delay or an <a href="https://en.wikipedia.org/wiki/Exponential_backoff" target="_blank">exponential backoff</a>
+ * strategy between retries, with an optional {@link Builder#setMaxTimeout(Duration) maximum timeout}.
  * <li>When you want to throttle task submission but avoid executing rejected tasks on the {@link CallerRunsPolicy
  * caller thread}: {@code RetryPolicy} offers a conceptually <i>cleaner</i> solution by ensuring that all tasks execute
  * <i>within</i> the thread pool. For example if you want all tasks to execute using a
  * {@link ThreadPoolExecutor#setThreadFactory(java.util.concurrent.ThreadFactory) custom thread factory}, or to simplify
- * troubleshooting by avoiding scenarios where the main dispatcher thread suddenly begins executing tasks directly,
- * making it harder to trace the execution flow in debug logs.
+ * troubleshooting by avoiding scenarios where the main dispatcher thread suddenly begins executing tasks directly
+ * (making it harder to trace the execution flow in debug logs).
  * </ul>
  * <p>
  * Instances of this policy are created using a {@link RetryPolicy.Builder builder} obtained from
@@ -275,10 +273,10 @@ public final class RetryPolicy implements RejectedExecutionHandler {
         }
     }
 
-    private long nextBackOff(final int attempt, final long remainingNanos) {
-        final long nanos = (long) (initialDelayMillis * Math.pow(multiplier, attempt));
-        final long delay = Math.min(nanos, maxDelayMillis);
-        return Math.min(delay, remainingNanos);
+    private long nextBackOff(final int attempt, final long remainingMillis) {
+        final long millis = (long) (initialDelayMillis * Math.pow(multiplier, attempt));
+        final long delay  = Math.min(millis, maxDelayMillis);
+        return Math.min(delay, remainingMillis);
     }
 
 }

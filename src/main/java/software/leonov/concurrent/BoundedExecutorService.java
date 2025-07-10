@@ -11,6 +11,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -58,7 +59,7 @@ public final class BoundedExecutorService extends AbstractExecutorService {
      * @param nthreads the specified number of threads
      */
     public static BoundedExecutorService newFixedThreadPool(final int nthreads) {
-        return new BoundedExecutorService((AbstractExecutorService) Executors.newFixedThreadPool(nthreads), nthreads);
+        return new BoundedExecutorService(Executors.newFixedThreadPool(nthreads), nthreads);
     }
 
     /**
@@ -74,7 +75,7 @@ public final class BoundedExecutorService extends AbstractExecutorService {
      * @param factory  the thread factory to use when creating new threads
      */
     public static BoundedExecutorService newFixedThreadPool(final int nthreads, final ThreadFactory factory) {
-        return new BoundedExecutorService((AbstractExecutorService) Executors.newFixedThreadPool(nthreads, factory), nthreads);
+        return new BoundedExecutorService(Executors.newFixedThreadPool(nthreads, factory), nthreads);
     }
 
     /**
@@ -86,7 +87,7 @@ public final class BoundedExecutorService extends AbstractExecutorService {
      * @param exec   the underlying executor service
      * @param ntasks the maximum number of tasks allowed to execute concurrently
      */
-    public BoundedExecutorService(final AbstractExecutorService exec, final int ntasks) {
+    public BoundedExecutorService(final ExecutorService exec, final int ntasks) {
         requireNonNull(exec, "exec == null");
 
         if (ntasks < 1)
@@ -221,6 +222,38 @@ public final class BoundedExecutorService extends AbstractExecutorService {
             semaphore.release();
         }
         return tasks;
+    }
+
+    /**
+     * Returns whether or not {@link #shutdownFast()} is supported.
+     * 
+     * @return {@code true} if the {@link #shutdownFast()} is supported {@code false} otherwise
+     */
+    public boolean isShutdownFastSupported() {
+        return exec instanceof ThreadPoolExecutor;
+    }
+
+    /**
+     * Halts the processing of pending tasks but does not attempt to stop actively executing tasks. All pending tasks are
+     * drained (removed) from the task queue and returned when this method completes. See
+     * {@link Execution#shutdownFast(ThreadPoolExecutor)} for details.
+     * <p>
+     * If the underlying executor service is not a {@link ThreadPoolExecutor} this method will throw an
+     * {@link UnsupportedOperationException}.
+     * 
+     * @return the list of pending tasks
+     * @throws UnsupportedOperationException if the underlying executor service is not a {@link ThreadPoolExecutor}
+     */
+    public List<Runnable> shutdownFast() {
+        if (exec instanceof ThreadPoolExecutor) {
+            final List<Runnable> tasks = Execution.shutdownFast((ThreadPoolExecutor) exec);
+            for (int i = 0; i < tasks.size(); i++) {
+                counter.countDown();
+                semaphore.release();
+            }
+            return tasks;
+        } else
+            throw new UnsupportedOperationException();
     }
 
     @Override
