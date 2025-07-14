@@ -133,8 +133,8 @@ public final class BoundedExecutorService extends AbstractExecutorService {
      * Waits for all currently submitted tasks to complete execution.
      * <p>
      * Provides a blocking mechanism that suspends the calling thread until all tasks that have been submitted to this
-     * executor service via any of its {@code execute}, {@code submit}, {@code invokeAny}, or {@code invokeAll} methods have
-     * finished processing. The executor service remains fully operational after this method returns.
+     * executor service via any of its {@code execute} or {@code submit} methods have finished processing. The executor
+     * service remains fully operational after this method returns.
      * <p>
      * <b>Motivation and Design Rationale:</b>
      * <p>
