@@ -126,7 +126,7 @@ public final class Execution {
             return ((PausableThreadPoolExecutor) exec).shutdownFast();
         else {
             exec.shutdown();
-            final BlockingQueue<Runnable> queue = exec.getQueue();
+            final BlockingQueue<Runnable> queue = exec instanceof BoundedThreadPoolExecutor ? ((BoundedThreadPoolExecutor) exec)._getQueue() : exec.getQueue();
             final List<Runnable>          tasks = new ArrayList<>(queue.size());
             synchronized (exec) { // why are we doing this?
                 drainFully(queue, tasks);

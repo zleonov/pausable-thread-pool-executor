@@ -76,6 +76,10 @@ public final class BoundedThreadPoolExecutor extends ThreadPoolExecutor {
         svc.execute(command);
     }
 
+    void _execute(final Runnable command) {
+        super.execute(command);
+    }
+
     /**
      * This operation is not supported.
      * 
@@ -139,6 +143,10 @@ public final class BoundedThreadPoolExecutor extends ThreadPoolExecutor {
     @Override
     public BlockingQueue<Runnable> getQueue() {
         throw new UnsupportedOperationException();
+    }
+
+    BlockingQueue<Runnable> _getQueue() {
+        return super.getQueue();
     }
 
     /**

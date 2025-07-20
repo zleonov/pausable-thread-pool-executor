@@ -110,17 +110,23 @@ public final class BoundedExecutorService extends AbstractExecutorService {
     public void execute(final Runnable command) {
         requireNonNull(command, "command == null");
 
+        final Runnable task = () -> {
+            try {
+                command.run();
+            } finally {
+                counter.countDown();
+                semaphore.release();
+            }
+        };
+
         try {
             semaphore.acquire();
             counter.countUp();
-            exec.execute(() -> {
-                try {
-                    command.run();
-                } finally {
-                    counter.countDown();
-                    semaphore.release();
-                }
-            });
+
+            if (exec instanceof BoundedThreadPoolExecutor)
+                ((BoundedThreadPoolExecutor) exec)._execute(task);
+            else
+                exec.execute(task);
         } catch (final RejectedExecutionException e) {
             counter.countDown();
             semaphore.release();
