@@ -226,7 +226,7 @@ public final class BoundedThreadPoolExecutor extends ThreadPoolExecutor {
     @Override
     public String toString() {
         final String parent = super.toString();
-        return parent.substring(0, parent.length() - 1) + ", bound = " + getCorePoolSize() + "]";
+        return this.getClass().getSimpleName() + (parent.substring(0, parent.length() - 1) + ", bound = " + getCorePoolSize() + "]").substring(parent.indexOf('['));
     }
 
 }
